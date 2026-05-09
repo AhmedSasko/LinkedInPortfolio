@@ -42,12 +42,15 @@ The API handles all business logic. React is purely a display layer. No authenti
 | Headline | string | |
 | Location | string | |
 | About | string | |
-| PhotoUrl | string | URL or base64 |
+| PhotoBase64 | string (TEXT) | Profile photo downloaded during scrape and stored as base64 — LinkedIn photo URLs require an active session to load, so the photo is embedded directly |
+
+All child tables below have a `ProfileSnapshotId` (int FK) referencing `ProfileSnapshot.Id`.
 
 ### `Experience`
 | Column | Type |
 |---|---|
 | Id | int PK |
+| ProfileSnapshotId | int FK |
 | Title | string |
 | Company | string |
 | StartDate | string |
@@ -59,6 +62,7 @@ The API handles all business logic. React is purely a display layer. No authenti
 | Column | Type |
 |---|---|
 | Id | int PK |
+| ProfileSnapshotId | int FK |
 | School | string |
 | Degree | string |
 | FieldOfStudy | string |
@@ -69,6 +73,7 @@ The API handles all business logic. React is purely a display layer. No authenti
 | Column | Type |
 |---|---|
 | Id | int PK |
+| ProfileSnapshotId | int FK |
 | Name | string |
 | EndorsementCount | int |
 
@@ -76,6 +81,7 @@ The API handles all business logic. React is purely a display layer. No authenti
 | Column | Type |
 |---|---|
 | Id | int PK |
+| ProfileSnapshotId | int FK |
 | Title | string |
 | Description | string |
 | Url | string |
@@ -86,6 +92,7 @@ The API handles all business logic. React is purely a display layer. No authenti
 | Column | Type |
 |---|---|
 | Id | int PK |
+| ProfileSnapshotId | int FK |
 | Name | string |
 | IssuingOrganization | string |
 | IssueDate | string |
@@ -154,6 +161,8 @@ On failure:
 ```json
 { "success": false, "message": "Failed to scrape: login blocked" }
 ```
+
+**Empty state:** `GET /api/profile` returns `204 No Content` if no sync has been run yet. React displays a "No data yet — run a sync from /admin" message.
 
 CORS allows `localhost:5173` (React dev) and production origin.
 
