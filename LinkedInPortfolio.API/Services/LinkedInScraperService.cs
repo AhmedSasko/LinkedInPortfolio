@@ -1,4 +1,5 @@
 // LinkedInPortfolio.API/Services/LinkedInScraperService.cs
+using System.Text.Json;
 using PuppeteerSharp;
 using PuppeteerSharp.Input;
 
@@ -6,6 +7,8 @@ namespace LinkedInPortfolio.API.Services;
 
 public class LinkedInScraperService(IConfiguration config, IHttpClientFactory httpClientFactory, ILogger<LinkedInScraperService> logger) : ILinkedInScraperService
 {
+    private static readonly JsonSerializerOptions _jsonOpts = new() { PropertyNameCaseInsensitive = true };
+
     public async Task<ProfileData> ScrapeProfileAsync()
     {
         var email = config["LinkedIn:Email"] ?? throw new InvalidOperationException("LinkedIn:Email not configured");
@@ -34,7 +37,7 @@ public class LinkedInScraperService(IConfiguration config, IHttpClientFactory ht
         await Delay(300, 600);
         await page.TypeAsync("#password", password, new TypeOptions { Delay = 80 });
         await Delay(400, 800);
-        await page.ClickAsync("[data-litms-control-urn='login-submit'], [type='submit']");
+        await page.ClickAsync("[type='submit']");
         await page.WaitForNavigationAsync(new NavigationOptions { WaitUntil = [WaitUntilNavigation.Networkidle0], Timeout = 15000 });
         await Delay(2000, 3500);
 
@@ -157,6 +160,7 @@ public class LinkedInScraperService(IConfiguration config, IHttpClientFactory ht
             var cookieHeader = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
 
             var client = httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(10);
             client.DefaultRequestHeaders.Add("Cookie", cookieHeader);
             client.DefaultRequestHeaders.Add("Referer", "https://www.linkedin.com/");
             var bytes = await client.GetByteArrayAsync(src);
@@ -191,7 +195,7 @@ public class LinkedInScraperService(IConfiguration config, IHttpClientFactory ht
                     }).filter(e => e.Title.length > 0);
                 })())
             ");
-            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<ExperienceData>>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<ExperienceData>>(json, _jsonOpts) ?? [];
         }
         catch { return []; }
     }
@@ -221,7 +225,7 @@ public class LinkedInScraperService(IConfiguration config, IHttpClientFactory ht
                     }).filter(e => e.School.length > 0);
                 })())
             ");
-            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<EducationData>>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<EducationData>>(json, _jsonOpts) ?? [];
         }
         catch { return []; }
     }
@@ -245,7 +249,7 @@ public class LinkedInScraperService(IConfiguration config, IHttpClientFactory ht
                     }).filter(s => s.Name.length > 0);
                 })())
             ");
-            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<SkillData>>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<SkillData>>(json, _jsonOpts) ?? [];
         }
         catch { return []; }
     }
@@ -276,7 +280,7 @@ public class LinkedInScraperService(IConfiguration config, IHttpClientFactory ht
                     }).filter(p => p.Title.length > 0);
                 })())
             ");
-            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<ProjectData>>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<ProjectData>>(json, _jsonOpts) ?? [];
         }
         catch { return []; }
     }
@@ -304,7 +308,7 @@ public class LinkedInScraperService(IConfiguration config, IHttpClientFactory ht
                     }).filter(c => c.Name.length > 0);
                 })())
             ");
-            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<CertificationData>>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+            return string.IsNullOrEmpty(json) ? [] : System.Text.Json.JsonSerializer.Deserialize<List<CertificationData>>(json, _jsonOpts) ?? [];
         }
         catch { return []; }
     }
