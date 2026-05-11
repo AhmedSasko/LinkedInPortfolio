@@ -31,7 +31,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<AppSetting>(e =>
         {
+            e.Property(s => s.Key).HasMaxLength(255);
             e.Property(s => s.Value).HasColumnType("longtext");
+            e.HasIndex(s => s.Key).IsUnique();
         });
     }
 }
