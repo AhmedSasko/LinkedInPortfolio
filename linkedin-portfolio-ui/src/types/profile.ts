@@ -58,6 +58,18 @@ export interface ProfileStatusDto {
   certificationCount: number
 }
 
+export interface ProfileSummaryDto {
+  id: number
+  fetchedAt: string
+  name: string
+  headline: string
+  experienceCount: number
+  educationCount: number
+  skillCount: number
+  projectCount: number
+  certificationCount: number
+}
+
 export interface SyncResultDto {
   success: boolean
   syncedAt: string | null

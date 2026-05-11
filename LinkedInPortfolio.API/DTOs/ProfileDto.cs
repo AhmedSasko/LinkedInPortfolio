@@ -1,5 +1,18 @@
 namespace LinkedInPortfolio.API.DTOs;
 
+public class ProfileSummaryDto
+{
+    public int Id { get; set; }
+    public DateTime FetchedAt { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Headline { get; set; } = string.Empty;
+    public int ExperienceCount { get; set; }
+    public int EducationCount { get; set; }
+    public int SkillCount { get; set; }
+    public int ProjectCount { get; set; }
+    public int CertificationCount { get; set; }
+}
+
 public class ProfileDto
 {
     public DateTime FetchedAt { get; set; }

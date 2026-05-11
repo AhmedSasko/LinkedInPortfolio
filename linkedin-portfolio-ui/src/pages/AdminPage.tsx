@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchStatus, triggerSync } from '../api/profileApi'
+import { fetchStatus, triggerSync, fetchAllProfiles } from '../api/profileApi'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { Link } from 'react-router-dom'
 
@@ -11,6 +11,11 @@ export function AdminPage() {
   const { data: status, isLoading: statusLoading } = useQuery({
     queryKey: ['status'],
     queryFn: fetchStatus,
+  })
+
+  const { data: profiles, isLoading: profilesLoading } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: fetchAllProfiles,
   })
 
   const syncMutation = useMutation({
@@ -52,7 +57,7 @@ export function AdminPage() {
           disabled={syncMutation.isPending}
           className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold rounded-xl transition-colors"
         >
-          {syncMutation.isPending ? 'Syncing... (this takes 30–60s)' : 'Sync from LinkedIn'}
+          {syncMutation.isPending ? 'Browser opened — please log in to LinkedIn…' : 'Sync from LinkedIn'}
         </button>
 
         {syncMutation.isPending && <LoadingSpinner message="Scraping LinkedIn profile..." />}
@@ -60,6 +65,37 @@ export function AdminPage() {
         {syncMessage && (
           <div className={`p-4 rounded-xl text-sm ${syncMessage.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
             {syncMessage.text}
+          </div>
+        )}
+      </div>
+
+      {/* Synced Profiles List */}
+      <div className="bg-white rounded-2xl shadow p-8 space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900">Synced Profiles</h2>
+        {profilesLoading ? (
+          <LoadingSpinner message="Loading profiles..." />
+        ) : !profiles || profiles.length === 0 ? (
+          <p className="text-sm text-gray-400">No profiles synced yet.</p>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {profiles.map(p => (
+              <div key={p.id} className="py-3 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{p.name || '(no name)'}</p>
+                  <p className="text-xs text-gray-500 truncate">{p.headline || '—'}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {new Date(p.fetchedAt).toLocaleString()} &nbsp;·&nbsp;
+                    {p.experienceCount} exp &nbsp;·&nbsp; {p.skillCount} skills &nbsp;·&nbsp; {p.educationCount} edu
+                  </p>
+                </div>
+                <Link
+                  to={`/profile/${p.id}`}
+                  className="flex-shrink-0 px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  View
+                </Link>
+              </div>
+            ))}
           </div>
         )}
       </div>

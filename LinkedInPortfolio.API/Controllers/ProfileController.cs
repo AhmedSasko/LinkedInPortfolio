@@ -7,6 +7,21 @@ namespace LinkedInPortfolio.API.Controllers;
 [Route("api/[controller]")]
 public class ProfileController(IProfileService profileService) : ControllerBase
 {
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAll()
+    {
+        var summaries = await profileService.GetAllSummariesAsync();
+        return Ok(summaries);
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var profile = await profileService.GetProfileByIdAsync(id);
+        if (profile is null) return NotFound();
+        return Ok(profile);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetProfile()
     {

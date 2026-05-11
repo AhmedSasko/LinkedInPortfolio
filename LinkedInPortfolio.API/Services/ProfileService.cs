@@ -7,6 +7,30 @@ namespace LinkedInPortfolio.API.Services;
 
 public class ProfileService(AppDbContext db) : IProfileService
 {
+    public async Task<List<ProfileSummaryDto>> GetAllSummariesAsync()
+    {
+        return await db.ProfileSnapshots
+            .Include(p => p.Experiences)
+            .Include(p => p.Educations)
+            .Include(p => p.Skills)
+            .Include(p => p.Projects)
+            .Include(p => p.Certifications)
+            .OrderByDescending(p => p.FetchedAt)
+            .Select(p => new ProfileSummaryDto
+            {
+                Id = p.Id,
+                FetchedAt = p.FetchedAt,
+                Name = p.Name,
+                Headline = p.Headline,
+                ExperienceCount = p.Experiences.Count,
+                EducationCount = p.Educations.Count,
+                SkillCount = p.Skills.Count,
+                ProjectCount = p.Projects.Count,
+                CertificationCount = p.Certifications.Count
+            })
+            .ToListAsync();
+    }
+
     public async Task<ProfileDto?> GetProfileAsync()
     {
         var snapshot = await db.ProfileSnapshots
@@ -18,54 +42,36 @@ public class ProfileService(AppDbContext db) : IProfileService
             .OrderByDescending(p => p.FetchedAt)
             .FirstOrDefaultAsync();
 
-        if (snapshot is null) return null;
+        return snapshot is null ? null : MapToDto(snapshot);
+    }
 
-        return new ProfileDto
-        {
-            FetchedAt = snapshot.FetchedAt,
-            Name = snapshot.Name,
-            Headline = snapshot.Headline,
-            Location = snapshot.Location,
-            About = snapshot.About,
-            PhotoBase64 = snapshot.PhotoBase64,
-            Experience = snapshot.Experiences.Select(e => new ExperienceDto
-            {
-                Title = e.Title,
-                Company = e.Company,
-                StartDate = e.StartDate,
-                EndDate = e.EndDate,
-                Description = e.Description,
-                IsCurrent = e.IsCurrent
-            }).ToList(),
-            Education = snapshot.Educations.Select(e => new EducationDto
-            {
-                School = e.School,
-                Degree = e.Degree,
-                FieldOfStudy = e.FieldOfStudy,
-                StartYear = e.StartYear,
-                EndYear = e.EndYear
-            }).ToList(),
-            Skills = snapshot.Skills.Select(s => new SkillDto
-            {
-                Name = s.Name,
-                EndorsementCount = s.EndorsementCount
-            }).ToList(),
-            Projects = snapshot.Projects.Select(p => new ProjectDto
-            {
-                Title = p.Title,
-                Description = p.Description,
-                Url = p.Url,
-                StartDate = p.StartDate,
-                EndDate = p.EndDate
-            }).ToList(),
-            Certifications = snapshot.Certifications.Select(c => new CertificationDto
-            {
-                Name = c.Name,
-                IssuingOrganization = c.IssuingOrganization,
-                IssueDate = c.IssueDate,
-                CredentialUrl = c.CredentialUrl
-            }).ToList()
-        };
+    private static ProfileDto MapToDto(ProfileSnapshot s) => new()
+    {
+        FetchedAt = s.FetchedAt,
+        Name = s.Name,
+        Headline = s.Headline,
+        Location = s.Location,
+        About = s.About,
+        PhotoBase64 = s.PhotoBase64,
+        Experience = s.Experiences.Select(e => new ExperienceDto { Title = e.Title, Company = e.Company, StartDate = e.StartDate, EndDate = e.EndDate, Description = e.Description, IsCurrent = e.IsCurrent }).ToList(),
+        Education = s.Educations.Select(e => new EducationDto { School = e.School, Degree = e.Degree, FieldOfStudy = e.FieldOfStudy, StartYear = e.StartYear, EndYear = e.EndYear }).ToList(),
+        Skills = s.Skills.Select(sk => new SkillDto { Name = sk.Name, EndorsementCount = sk.EndorsementCount }).ToList(),
+        Projects = s.Projects.Select(p => new ProjectDto { Title = p.Title, Description = p.Description, Url = p.Url, StartDate = p.StartDate, EndDate = p.EndDate }).ToList(),
+        Certifications = s.Certifications.Select(c => new CertificationDto { Name = c.Name, IssuingOrganization = c.IssuingOrganization, IssueDate = c.IssueDate, CredentialUrl = c.CredentialUrl }).ToList()
+    };
+
+    public async Task<ProfileDto?> GetProfileByIdAsync(int id)
+    {
+        var snapshot = await db.ProfileSnapshots
+            .Include(p => p.Experiences)
+            .Include(p => p.Educations)
+            .Include(p => p.Skills)
+            .Include(p => p.Projects)
+            .Include(p => p.Certifications)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (snapshot is null) return null;
+        return MapToDto(snapshot);
     }
 
     public async Task<ProfileStatusDto> GetStatusAsync()
@@ -95,10 +101,6 @@ public class ProfileService(AppDbContext db) : IProfileService
 
     public async Task SaveProfileAsync(ProfileData data)
     {
-        var existing = await db.ProfileSnapshots.ToListAsync();
-        db.ProfileSnapshots.RemoveRange(existing);
-        await db.SaveChangesAsync();
-
         var snapshot = new ProfileSnapshot
         {
             FetchedAt = data.FetchedAt,
