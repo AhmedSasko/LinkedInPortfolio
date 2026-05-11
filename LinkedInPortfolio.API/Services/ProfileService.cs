@@ -12,7 +12,7 @@ public class ProfileService(AppDbContext db) : IProfileService
         var snapshot = new ProfileSnapshot
         {
             UserId = userId,
-            FetchedAt = data.FetchedAt,
+            FetchedAt = data.FetchedAt == default ? DateTime.UtcNow : data.FetchedAt,
             Name = data.Name,
             Headline = data.Headline,
             Location = data.Location,
@@ -83,17 +83,22 @@ public class ProfileService(AppDbContext db) : IProfileService
             .FirstOrDefaultAsync(s => s.Id == snapshotId && s.UserId == userId);
 
     public async Task<List<ProfileSummaryDto>> GetAllSummariesAsync() =>
-        await db.ProfileSnapshots
-            .Include(s => s.User)
-            .GroupBy(s => s.UserId)
-            .Select(g => g.OrderByDescending(s => s.FetchedAt).First())
-            .Select(s => new ProfileSummaryDto
+        await db.Users
+            .Select(u => new
             {
-                Id = s.Id,
-                FetchedAt = s.FetchedAt,
-                Name = s.Name,
-                Headline = s.Headline,
-                UserEmail = s.User.Email
+                u.Email,
+                Latest = u.ProfileSnapshots
+                    .OrderByDescending(s => s.FetchedAt)
+                    .FirstOrDefault()
+            })
+            .Where(u => u.Latest != null)
+            .Select(u => new ProfileSummaryDto
+            {
+                Id = u.Latest!.Id,
+                FetchedAt = u.Latest.FetchedAt,
+                Name = u.Latest.Name,
+                Headline = u.Latest.Headline,
+                UserEmail = u.Email
             })
             .ToListAsync();
 

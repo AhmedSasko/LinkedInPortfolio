@@ -12,21 +12,26 @@ namespace LinkedInPortfolio.API.Controllers;
 [Authorize]
 public class ProfileController(IProfileService profileService, ILinkedInScraperService scraperService) : ControllerBase
 {
-    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
-        ?? User.FindFirstValue("sub")
-        ?? throw new UnauthorizedAccessException());
+    private bool TryGetUserId(out int userId)
+    {
+        var value = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        return int.TryParse(value, out userId);
+    }
 
     [HttpPost("import")]
     public async Task<IActionResult> Import([FromBody] ImportRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.LinkedInUrl) ||
-            !request.LinkedInUrl.Contains("linkedin.com/in/"))
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        if (!Uri.TryCreate(request.LinkedInUrl, UriKind.Absolute, out var uri) ||
+            !uri.Host.EndsWith("linkedin.com") ||
+            !uri.AbsolutePath.StartsWith("/in/"))
             return BadRequest(new { message = "Please provide a valid LinkedIn profile URL (e.g. https://www.linkedin.com/in/username)." });
 
         try
         {
             var data = await scraperService.ScrapeProfileAsync(request.LinkedInUrl);
-            var snapshot = await profileService.SaveProfileAsync(UserId, data);
+            var snapshot = await profileService.SaveProfileAsync(userId, data);
             return Ok(MapToDto(snapshot));
         }
         catch (InvalidOperationException ex)
@@ -38,7 +43,8 @@ public class ProfileController(IProfileService profileService, ILinkedInScraperS
     [HttpGet("latest")]
     public async Task<IActionResult> GetLatest()
     {
-        var snapshot = await profileService.GetLatestAsync(UserId);
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var snapshot = await profileService.GetLatestAsync(userId);
         if (snapshot is null) return NotFound(new { message = "No profile imported yet." });
         return Ok(MapToDto(snapshot));
     }
@@ -46,15 +52,17 @@ public class ProfileController(IProfileService profileService, ILinkedInScraperS
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var snapshot = await profileService.GetByIdAsync(UserId, id);
-        if (snapshot is null) return NotFound();
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var snapshot = await profileService.GetByIdAsync(userId, id);
+        if (snapshot is null) return NotFound(new { message = "Snapshot not found." });
         return Ok(MapToDto(snapshot));
     }
 
     [HttpGet("status")]
     public async Task<IActionResult> GetStatus()
     {
-        var status = await profileService.GetStatusAsync(UserId);
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var status = await profileService.GetStatusAsync(userId);
         return Ok(status);
     }
 
