@@ -52,7 +52,12 @@ export function PortfolioPage() {
     retry: false,
   })
 
-  if (isLoading) return <LoadingSpinner message="Loading profile..." />
+  if (isLoading) return (
+    <>
+      <NavBar />
+      <LoadingSpinner message="Loading profile..." />
+    </>
+  )
 
   if (isError) return (
     <>

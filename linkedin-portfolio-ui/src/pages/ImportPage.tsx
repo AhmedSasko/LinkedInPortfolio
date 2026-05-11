@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { importProfile } from '../api/profileApi'
 
 export function ImportPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [url, setUrl] = useState('')
 
   const mutation = useMutation({
     mutationFn: () => importProfile({ linkedInUrl: url }),
-    onSuccess: () => navigate('/'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+      navigate('/')
+    },
   })
 
   return (

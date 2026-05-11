@@ -11,6 +11,7 @@ export function AdminPage() {
   const { data: profiles, isLoading, isError } = useQuery({
     queryKey: ['admin-profiles'],
     queryFn: fetchAllProfiles,
+    retry: false,
   })
 
   function handleLogout() {
