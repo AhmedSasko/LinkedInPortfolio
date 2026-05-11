@@ -15,9 +15,6 @@ public class LinkedInScraperService(
         if (string.IsNullOrWhiteSpace(profileUrl))
             throw new ArgumentException("Profile URL cannot be empty.", nameof(profileUrl));
 
-        logger.LogInformation("Downloading Chromium if needed...");
-        await new BrowserFetcher().DownloadAsync();
-
         logger.LogInformation("Launching headless browser...");
         await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions
         {
