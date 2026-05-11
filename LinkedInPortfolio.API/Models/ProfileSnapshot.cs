@@ -3,6 +3,8 @@ namespace LinkedInPortfolio.API.Models;
 public class ProfileSnapshot
 {
     public int Id { get; set; }
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
     public DateTime FetchedAt { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Headline { get; set; } = string.Empty;

@@ -10,7 +10,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<ILinkedInScraperService, LinkedInScraperService>();
-builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddHttpClient();
 
 builder.Services.AddCors(options =>

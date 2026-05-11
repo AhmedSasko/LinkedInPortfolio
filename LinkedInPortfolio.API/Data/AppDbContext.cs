@@ -5,20 +5,30 @@ namespace LinkedInPortfolio.API.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<User> Users => Set<User>();
     public DbSet<ProfileSnapshot> ProfileSnapshots => Set<ProfileSnapshot>();
     public DbSet<Experience> Experiences => Set<Experience>();
     public DbSet<Education> Educations => Set<Education>();
     public DbSet<Skill> Skills => Set<Skill>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<Certification> Certifications => Set<Certification>();
-    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<User>(e =>
+        {
+            e.Property(u => u.Email).HasMaxLength(255);
+            e.HasIndex(u => u.Email).IsUnique();
+        });
+
         modelBuilder.Entity<ProfileSnapshot>(e =>
         {
             e.Property(p => p.PhotoBase64).HasColumnType("longtext");
             e.Property(p => p.About).HasColumnType("longtext");
+            e.HasOne(p => p.User)
+                .WithMany(u => u.ProfileSnapshots)
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
             e.HasMany(p => p.Experiences).WithOne().HasForeignKey(x => x.ProfileSnapshotId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(p => p.Educations).WithOne().HasForeignKey(x => x.ProfileSnapshotId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(p => p.Skills).WithOne().HasForeignKey(x => x.ProfileSnapshotId).OnDelete(DeleteBehavior.Cascade);
@@ -28,12 +38,5 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<Experience>().Property(e => e.Description).HasColumnType("longtext");
         modelBuilder.Entity<Project>().Property(p => p.Description).HasColumnType("longtext");
-
-        modelBuilder.Entity<AppSetting>(e =>
-        {
-            e.Property(s => s.Key).HasMaxLength(255);
-            e.Property(s => s.Value).HasColumnType("longtext");
-            e.HasIndex(s => s.Key).IsUnique();
-        });
     }
 }
