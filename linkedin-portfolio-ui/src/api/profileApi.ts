@@ -13,9 +13,14 @@ api.interceptors.request.use((config) => {
 })
 
 export async function fetchProfile(): Promise<ProfileDto | null> {
-  const res = await api.get<ProfileDto>('/profile/latest')
-  if (res.status === 204) return null
-  return res.data
+  try {
+    const res = await api.get<ProfileDto>('/profile/latest')
+    return res.data
+  } catch (err: unknown) {
+    // 404 means no profile imported yet — treat as empty, not error
+    if (axios.isAxiosError(err) && err.response?.status === 404) return null
+    throw err
+  }
 }
 
 export async function fetchAllProfiles(): Promise<ProfileSummaryDto[]> {

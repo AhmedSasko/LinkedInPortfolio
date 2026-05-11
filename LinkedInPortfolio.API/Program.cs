@@ -82,5 +82,6 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowReact");
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/api/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
 app.MapControllers();
 app.Run();
