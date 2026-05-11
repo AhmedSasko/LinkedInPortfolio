@@ -32,6 +32,9 @@ public class ProfileImportTests : IClassFixture<ProfileImportWebAppFactory>
     {
         _factory = factory;
         _client = factory.CreateClient();
+        // Reset shared mock state before each test — xUnit creates a new class instance
+        // per test but the IClassFixture factory (and its mock) is shared.
+        factory.ScraperMock.Reset();
     }
 
     private static string GenerateTestJwt(int userId = 1)
