@@ -16,8 +16,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     {
         modelBuilder.Entity<ProfileSnapshot>(e =>
         {
-            e.Property(p => p.PhotoBase64).HasColumnType("nvarchar(max)");
-            e.Property(p => p.About).HasColumnType("nvarchar(max)");
+            e.Property(p => p.PhotoBase64).HasColumnType("longtext");
+            e.Property(p => p.About).HasColumnType("longtext");
             e.HasMany(p => p.Experiences).WithOne().HasForeignKey(x => x.ProfileSnapshotId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(p => p.Educations).WithOne().HasForeignKey(x => x.ProfileSnapshotId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(p => p.Skills).WithOne().HasForeignKey(x => x.ProfileSnapshotId).OnDelete(DeleteBehavior.Cascade);
@@ -25,7 +25,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasMany(p => p.Certifications).WithOne().HasForeignKey(x => x.ProfileSnapshotId).OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<Experience>().Property(e => e.Description).HasColumnType("nvarchar(max)");
-        modelBuilder.Entity<Project>().Property(p => p.Description).HasColumnType("nvarchar(max)");
+        modelBuilder.Entity<Experience>().Property(e => e.Description).HasColumnType("longtext");
+        modelBuilder.Entity<Project>().Property(p => p.Description).HasColumnType("longtext");
     }
 }
