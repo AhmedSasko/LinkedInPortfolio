@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -12,6 +12,9 @@ namespace LinkedInPortfolio.API.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterDatabase()
+                .Annotation("MySql:CharSet", "utf8mb4");
+
             migrationBuilder.CreateTable(
                 name: "ProfileSnapshots",
                 columns: table => new
@@ -207,12 +210,23 @@ namespace LinkedInPortfolio.API.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: "Certifications");
-            migrationBuilder.DropTable(name: "Educations");
-            migrationBuilder.DropTable(name: "Experiences");
-            migrationBuilder.DropTable(name: "Projects");
-            migrationBuilder.DropTable(name: "Skills");
-            migrationBuilder.DropTable(name: "ProfileSnapshots");
+            migrationBuilder.DropTable(
+                name: "Certifications");
+
+            migrationBuilder.DropTable(
+                name: "Educations");
+
+            migrationBuilder.DropTable(
+                name: "Experiences");
+
+            migrationBuilder.DropTable(
+                name: "Projects");
+
+            migrationBuilder.DropTable(
+                name: "Skills");
+
+            migrationBuilder.DropTable(
+                name: "ProfileSnapshots");
         }
     }
 }

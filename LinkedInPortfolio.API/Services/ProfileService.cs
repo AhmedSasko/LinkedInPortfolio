@@ -148,6 +148,8 @@ public class ProfileService(AppDbContext db) : IProfileService
             }).ToList()
         };
 
+        var existing = await db.ProfileSnapshots.ToListAsync();
+        db.ProfileSnapshots.RemoveRange(existing);
         db.ProfileSnapshots.Add(snapshot);
         await db.SaveChangesAsync();
     }

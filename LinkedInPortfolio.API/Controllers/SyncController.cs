@@ -6,7 +6,7 @@ namespace LinkedInPortfolio.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class SyncController(ILinkedInScraperService scraper, IProfileService profileService, ILogger<SyncController> logger) : ControllerBase
+public class SyncController(ILinkedInScraperService scraper, IProfileService profileService) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Sync()
@@ -24,8 +24,7 @@ public class SyncController(ILinkedInScraperService scraper, IProfileService pro
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "LinkedIn sync failed");
-            return Ok(new SyncResultDto
+            return StatusCode(500, new SyncResultDto
             {
                 Success = false,
                 Message = $"Sync failed: {ex.Message}"
