@@ -16,7 +16,16 @@ builder.Services.AddScoped<ILinkedInScraperService, LinkedInScraperService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddHttpClient();
 
-var jwtKey = builder.Configuration["Jwt:Key"]!;
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key is required in configuration.");
+if (jwtKey.Length < 32)
+    throw new InvalidOperationException("Jwt:Key must be at least 32 characters.");
+
+if (string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Issuer"]))
+    throw new InvalidOperationException("Jwt:Issuer is required in configuration.");
+if (string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Audience"]))
+    throw new InvalidOperationException("Jwt:Audience is required in configuration.");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {

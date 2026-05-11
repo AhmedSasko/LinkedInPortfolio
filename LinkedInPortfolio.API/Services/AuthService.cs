@@ -1,3 +1,4 @@
+using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -17,8 +18,14 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
     public async Task<AuthResponseDto?> RegisterAsync(string email, string password)
     {
         var normalised = email.Trim().ToLowerInvariant();
+
+        using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
         if (await db.Users.AnyAsync(u => u.Email == normalised))
+        {
+            await transaction.RollbackAsync();
             return null;
+        }
 
         var isFirst = !await db.Users.AnyAsync();
         var user = new User
@@ -30,8 +37,9 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
         user.PasswordHash = _hasher.HashPassword(user, password);
         db.Users.Add(user);
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
-        return new AuthResponseDto { Token = GenerateToken(user) };
+        return new AuthResponseDto(GenerateToken(user));
     }
 
     public async Task<AuthResponseDto?> LoginAsync(string email, string password)
@@ -43,7 +51,13 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
         var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, password);
         if (result == PasswordVerificationResult.Failed) return null;
 
-        return new AuthResponseDto { Token = GenerateToken(user) };
+        if (result == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            user.PasswordHash = _hasher.HashPassword(user, password);
+            await db.SaveChangesAsync();
+        }
+
+        return new AuthResponseDto(GenerateToken(user));
     }
 
     private string GenerateToken(User user)
@@ -60,7 +74,7 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
             issuer: config["Jwt:Issuer"],
             audience: config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(int.Parse(config["Jwt:ExpiryDays"]!)),
+            expires: DateTime.UtcNow.AddDays(config.GetValue<int>("Jwt:ExpiryDays")),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
