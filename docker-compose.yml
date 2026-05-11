@@ -8,6 +8,12 @@ services:
       ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Port=3307;User=root;Password=Tuwaiq@123;Database=LinkedIn;AllowUserVariables=True;CharSet=utf8mb4"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/profile/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - linkedin-net
 
@@ -18,7 +24,8 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - linkedin-net
 
