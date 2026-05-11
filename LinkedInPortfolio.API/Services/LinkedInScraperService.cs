@@ -42,6 +42,15 @@ public class LinkedInScraperService(
         catch { logger.LogWarning("h1 not found within 15s — continuing anyway"); }
         await Delay(2000, 3000);
 
+        // Detect LinkedIn's "soft" authwall: URL stays on profile but content is replaced
+        var h1Text = await page.EvaluateExpressionAsync<string>("document.querySelector('h1')?.innerText?.trim() ?? ''");
+        if (string.IsNullOrEmpty(h1Text)
+            || h1Text.Contains("Join LinkedIn", StringComparison.OrdinalIgnoreCase)
+            || h1Text.Contains("Sign in", StringComparison.OrdinalIgnoreCase)
+            || h1Text.StartsWith("Make the most", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "LinkedIn is blocking access to this profile. Make sure your profile visibility is set to 'Public' in LinkedIn Settings → Visibility.");
+
         await ScrollPageFully(page);
         await ExpandSections(page);
 
