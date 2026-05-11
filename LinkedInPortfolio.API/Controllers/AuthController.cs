@@ -14,6 +14,9 @@ public class AuthController(IAuthService authService) : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
             return BadRequest(new { message = "Email and password are required." });
 
+        try { _ = new System.Net.Mail.MailAddress(request.Email); }
+        catch { return BadRequest(new { message = "Invalid email format." }); }
+
         if (request.Password.Length < 8)
             return BadRequest(new { message = "Password must be at least 8 characters." });
 

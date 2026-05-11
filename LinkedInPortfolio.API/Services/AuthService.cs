@@ -52,8 +52,8 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim("isAdmin", user.IsAdmin.ToString().ToLower())
         };
         var token = new JwtSecurityToken(
