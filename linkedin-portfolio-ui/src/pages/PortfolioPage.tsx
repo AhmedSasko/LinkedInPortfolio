@@ -8,7 +8,42 @@ import { SkillsSection } from '../components/SkillsSection'
 import { ProjectsSection } from '../components/ProjectsSection'
 import { CertificationsSection } from '../components/CertificationsSection'
 import { LoadingSpinner } from '../components/LoadingSpinner'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
+
+function NavBar() {
+  const { isAdmin, logout } = useAuth()
+  const navigate = useNavigate()
+
+  function handleSignOut() {
+    logout()
+    navigate('/login')
+  }
+
+  return (
+    <nav className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <span className="font-bold text-gray-900 text-lg">LinkedIn Portfolio</span>
+        <div className="flex items-center gap-4">
+          <Link to="/import" className="text-sm text-blue-600 hover:underline">
+            Import Profile
+          </Link>
+          {isAdmin && (
+            <Link to="/admin" className="text-sm text-blue-600 hover:underline">
+              Admin
+            </Link>
+          )}
+          <button
+            onClick={handleSignOut}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    </nav>
+  )
+}
 
 export function PortfolioPage() {
   const { data: profile, isLoading, isError } = useQuery({
@@ -20,39 +55,48 @@ export function PortfolioPage() {
   if (isLoading) return <LoadingSpinner message="Loading profile..." />
 
   if (isError) return (
-    <div className="text-center py-20 text-red-500">
-      Failed to load profile. Is the API running?
-    </div>
+    <>
+      <NavBar />
+      <div className="text-center py-20 text-red-500">
+        Failed to load profile. Is the API running?
+      </div>
+    </>
   )
 
   if (!profile) return (
-    <div className="text-center py-20 text-gray-500">
-      <p className="text-lg">No profile data yet.</p>
-      <Link to="/admin" className="mt-3 inline-block text-blue-600 hover:underline">
-        Go to Admin → Sync from LinkedIn
-      </Link>
-    </div>
+    <>
+      <NavBar />
+      <div className="text-center py-20 text-gray-500">
+        <p className="text-lg">No profile data yet.</p>
+        <Link to="/import" className="mt-3 inline-block text-blue-600 hover:underline">
+          Import your LinkedIn profile
+        </Link>
+      </div>
+    </>
   )
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <ProfileHeader
-        name={profile.name}
-        headline={profile.headline}
-        location={profile.location}
-        photoBase64={profile.photoBase64}
-      />
-      <AboutSection about={profile.about} />
-      <ExperienceSection experience={profile.experience} />
-      <EducationSection education={profile.education} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <SkillsSection skills={profile.skills} />
-        <CertificationsSection certifications={profile.certifications} />
-      </div>
-      <ProjectsSection projects={profile.projects} />
-      <p className="text-center text-xs text-gray-400">
-        Last synced: {new Date(profile.fetchedAt).toLocaleString()}
-      </p>
-    </main>
+    <>
+      <NavBar />
+      <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+        <ProfileHeader
+          name={profile.name}
+          headline={profile.headline}
+          location={profile.location}
+          photoBase64={profile.photoBase64}
+        />
+        <AboutSection about={profile.about} />
+        <ExperienceSection experience={profile.experience} />
+        <EducationSection education={profile.education} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <SkillsSection skills={profile.skills} />
+          <CertificationsSection certifications={profile.certifications} />
+        </div>
+        <ProjectsSection projects={profile.projects} />
+        <p className="text-center text-xs text-gray-400">
+          Last synced: {new Date(profile.fetchedAt).toLocaleString()}
+        </p>
+      </main>
+    </>
   )
 }
