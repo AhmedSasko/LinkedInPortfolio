@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: LinkedInPortfolio.API/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Port=3307;User=root;Password=Tuwaiq@123;Database=LinkedIn;AllowUserVariables=True;CharSet=utf8mb4"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - linkedin-net
+
+  frontend:
+    build:
+      context: ./linkedin-portfolio-ui
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    networks:
+      - linkedin-net
+
+networks:
+  linkedin-net:
+    driver: bridge
