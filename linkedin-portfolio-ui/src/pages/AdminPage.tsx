@@ -43,8 +43,7 @@ export function AdminPage() {
                 <p className="font-semibold text-gray-900">{p.name || '(no name)'}</p>
                 <p className="text-sm text-gray-500">{p.headline || '—'}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  {new Date(p.fetchedAt).toLocaleString()} &nbsp;·&nbsp;
-                  {p.experienceCount} exp &nbsp;·&nbsp; {p.skillCount} skills &nbsp;·&nbsp; {p.educationCount} edu
+                  {p.userEmail} · {new Date(p.fetchedAt).toLocaleString()}
                 </p>
               </div>
               <Link

@@ -36,26 +36,23 @@ export interface CertificationDto {
 }
 
 export interface ProfileDto {
+  id: number
   fetchedAt: string
   name: string
   headline: string
   location: string
   about: string
   photoBase64: string
-  experience: ExperienceDto[]
-  education: EducationDto[]
+  experiences: ExperienceDto[]
+  educations: EducationDto[]
   skills: SkillDto[]
   projects: ProjectDto[]
   certifications: CertificationDto[]
 }
 
 export interface ProfileStatusDto {
+  hasProfile: boolean
   lastSyncedAt: string | null
-  experienceCount: number
-  educationCount: number
-  skillCount: number
-  projectCount: number
-  certificationCount: number
 }
 
 export interface ProfileSummaryDto {
@@ -63,45 +60,35 @@ export interface ProfileSummaryDto {
   fetchedAt: string
   name: string
   headline: string
-  experienceCount: number
-  educationCount: number
-  skillCount: number
-  projectCount: number
-  certificationCount: number
-}
-
-export interface SyncResultDto {
-  success: boolean
-  syncedAt: string | null
-  message: string
+  userEmail: string
 }
 
 // Auth
 export interface LoginRequest {
-  email: string;
-  password: string;
+  email: string
+  password: string
 }
 
 export interface RegisterRequest {
-  email: string;
-  password: string;
+  email: string
+  password: string
 }
 
 export interface AuthResponse {
-  token: string;
+  token: string
 }
 
 // Auth JWT payload (decoded from token)
 export interface AuthUser {
-  userId: number;
-  email: string;
-  isAdmin: boolean;
+  userId: number
+  email: string
+  isAdmin: boolean
 }
 
 // Import
 export interface ImportRequest {
-  linkedInUrl: string;
+  linkedInUrl: string
 }
 
 // Alias used by importProfile
-export type ProfileData = ProfileDto;
+export type ProfileData = ProfileDto

@@ -86,8 +86,8 @@ export function PortfolioPage() {
           photoBase64={profile.photoBase64}
         />
         <AboutSection about={profile.about} />
-        <ExperienceSection experience={profile.experience} />
-        <EducationSection education={profile.education} />
+        <ExperienceSection experience={profile.experiences} />
+        <EducationSection education={profile.educations} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <SkillsSection skills={profile.skills} />
           <CertificationsSection certifications={profile.certifications} />

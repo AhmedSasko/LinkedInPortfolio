@@ -45,18 +45,18 @@ export function ProfileDetailPage() {
       </div>
 
       {/* Experience */}
-      {profile.experience.length > 0 && (
+      {profile.experiences.length > 0 && (
         <Section title="Experience">
-          {profile.experience.map((e, i) => (
+          {profile.experiences.map((e, i) => (
             <Item key={i} title={e.title} subtitle={e.company} meta={`${e.startDate}${e.endDate ? ` – ${e.endDate}` : e.isCurrent ? ' – Present' : ''}`} body={e.description} />
           ))}
         </Section>
       )}
 
       {/* Education */}
-      {profile.education.length > 0 && (
+      {profile.educations.length > 0 && (
         <Section title="Education">
-          {profile.education.map((e, i) => (
+          {profile.educations.map((e, i) => (
             <Item key={i} title={e.school} subtitle={[e.degree, e.fieldOfStudy].filter(Boolean).join(' · ')} meta={`${e.startYear}${e.endYear ? ` – ${e.endYear}` : ''}`} />
           ))}
         </Section>
@@ -94,7 +94,7 @@ export function ProfileDetailPage() {
         </Section>
       )}
 
-      {profile.experience.length === 0 && profile.education.length === 0 && profile.skills.length === 0 && (
+      {profile.experiences.length === 0 && profile.educations.length === 0 && profile.skills.length === 0 && (
         <div className="bg-white rounded-2xl shadow p-6 text-center text-gray-400 text-sm">
           No sections data — this profile snapshot has only basic info.
         </div>
