@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Skill> Skills => Set<Skill>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<Certification> Certifications => Set<Certification>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,5 +28,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         modelBuilder.Entity<Experience>().Property(e => e.Description).HasColumnType("longtext");
         modelBuilder.Entity<Project>().Property(p => p.Description).HasColumnType("longtext");
+
+        modelBuilder.Entity<AppSetting>(e =>
+        {
+            e.Property(s => s.Value).HasColumnType("longtext");
+        });
     }
 }
