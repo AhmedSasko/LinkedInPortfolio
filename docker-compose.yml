@@ -6,6 +6,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Server=host.docker.internal;Port=3307;User=root;Password=Tuwaiq@123;Database=LinkedIn;AllowUserVariables=True;CharSet=utf8mb4"
+      Jwt__Key: "dev-secret-key-must-be-at-least-32-characters-long!!"
+      Jwt__Issuer: "LinkedInPortfolio"
+      Jwt__Audience: "LinkedInPortfolio"
+      Jwt__ExpiryDays: "7"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
