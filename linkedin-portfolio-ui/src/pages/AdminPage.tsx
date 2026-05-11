@@ -1,13 +1,9 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchStatus, triggerSync, fetchAllProfiles } from '../api/profileApi'
+import { useQuery } from '@tanstack/react-query'
+import { fetchStatus, fetchAllProfiles } from '../api/profileApi'
 import { LoadingSpinner } from '../components/LoadingSpinner'
 import { Link } from 'react-router-dom'
 
 export function AdminPage() {
-  const queryClient = useQueryClient()
-  const [syncMessage, setSyncMessage] = useState<{ text: string; success: boolean } | null>(null)
-
   const { data: status, isLoading: statusLoading } = useQuery({
     queryKey: ['status'],
     queryFn: fetchStatus,
@@ -16,20 +12,6 @@ export function AdminPage() {
   const { data: profiles, isLoading: profilesLoading } = useQuery({
     queryKey: ['profiles'],
     queryFn: fetchAllProfiles,
-  })
-
-  const syncMutation = useMutation({
-    mutationFn: triggerSync,
-    onSuccess: (result) => {
-      setSyncMessage({ text: result.message, success: result.success })
-      if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ['profile'] })
-        queryClient.invalidateQueries({ queryKey: ['status'] })
-      }
-    },
-    onError: () => {
-      setSyncMessage({ text: 'Unexpected error during sync.', success: false })
-    },
   })
 
   return (
@@ -52,21 +34,6 @@ export function AdminPage() {
           </div>
         )}
 
-        <button
-          onClick={() => { setSyncMessage(null); syncMutation.mutate() }}
-          disabled={syncMutation.isPending}
-          className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold rounded-xl transition-colors"
-        >
-          {syncMutation.isPending ? 'Browser opened — please log in to LinkedIn…' : 'Sync from LinkedIn'}
-        </button>
-
-        {syncMutation.isPending && <LoadingSpinner message="Scraping LinkedIn profile..." />}
-
-        {syncMessage && (
-          <div className={`p-4 rounded-xl text-sm ${syncMessage.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-            {syncMessage.text}
-          </div>
-        )}
       </div>
 
       {/* Synced Profiles List */}
