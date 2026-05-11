@@ -75,3 +75,33 @@ export interface SyncResultDto {
   syncedAt: string | null
   message: string
 }
+
+// Auth
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token: string;
+}
+
+// Auth JWT payload (decoded from token)
+export interface AuthUser {
+  userId: number;
+  email: string;
+  isAdmin: boolean;
+}
+
+// Import
+export interface ImportRequest {
+  linkedInUrl: string;
+}
+
+// Alias used by importProfile
+export type ProfileData = ProfileDto;
