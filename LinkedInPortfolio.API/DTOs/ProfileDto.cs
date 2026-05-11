@@ -1,31 +1,36 @@
 namespace LinkedInPortfolio.API.DTOs;
 
+public record ImportRequest(string LinkedInUrl);
+
 public class ProfileSummaryDto
 {
     public int Id { get; set; }
     public DateTime FetchedAt { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Headline { get; set; } = string.Empty;
-    public int ExperienceCount { get; set; }
-    public int EducationCount { get; set; }
-    public int SkillCount { get; set; }
-    public int ProjectCount { get; set; }
-    public int CertificationCount { get; set; }
+    public string UserEmail { get; set; } = string.Empty;
 }
 
 public class ProfileDto
 {
+    public int Id { get; set; }
     public DateTime FetchedAt { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Headline { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
     public string About { get; set; } = string.Empty;
     public string PhotoBase64 { get; set; } = string.Empty;
-    public List<ExperienceDto> Experience { get; set; } = new();
-    public List<EducationDto> Education { get; set; } = new();
+    public List<ExperienceDto> Experiences { get; set; } = new();
+    public List<EducationDto> Educations { get; set; } = new();
     public List<SkillDto> Skills { get; set; } = new();
     public List<ProjectDto> Projects { get; set; } = new();
     public List<CertificationDto> Certifications { get; set; } = new();
+}
+
+public class SyncStatusDto
+{
+    public DateTime? LastSyncedAt { get; set; }
+    public bool HasProfile { get; set; }
 }
 
 public class ExperienceDto

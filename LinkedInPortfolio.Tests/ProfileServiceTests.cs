@@ -16,20 +16,21 @@ public class ProfileServiceTests
     }
 
     [Fact]
-    public async Task GetProfile_WhenNoData_ReturnsNull()
+    public async Task GetLatest_WhenNoData_ReturnsNull()
     {
         using var context = CreateContext();
         var service = new ProfileService(context);
-        var result = await service.GetProfileAsync();
+        var result = await service.GetLatestAsync(userId: 1);
         Assert.Null(result);
     }
 
     [Fact]
-    public async Task GetProfile_WhenDataExists_ReturnsMappedDto()
+    public async Task GetLatest_WhenDataExists_ReturnsLatestForUser()
     {
         using var context = CreateContext();
         context.ProfileSnapshots.Add(new ProfileSnapshot
         {
+            UserId = 1,
             FetchedAt = DateTime.UtcNow,
             Name = "Ahmed Omran",
             Headline = "Software Engineer",
@@ -48,63 +49,78 @@ public class ProfileServiceTests
         await context.SaveChangesAsync();
 
         var service = new ProfileService(context);
-        var result = await service.GetProfileAsync();
+        var result = await service.GetLatestAsync(userId: 1);
 
         Assert.NotNull(result);
         Assert.Equal("Ahmed Omran", result.Name);
         Assert.Equal("Software Engineer", result.Headline);
-        Assert.Single(result.Experience);
-        Assert.Equal("Dev", result.Experience[0].Title);
+        Assert.Single(result.Experiences);
+        Assert.Equal("Dev", result.Experiences[0].Title);
         Assert.Single(result.Skills);
         Assert.Equal("C#", result.Skills[0].Name);
     }
 
     [Fact]
-    public async Task GetStatus_WhenNoData_ReturnsNullTimestampAndZeroCounts()
+    public async Task GetLatest_ReturnsOnlySnapshotsForRequestedUser()
     {
         using var context = CreateContext();
+        context.ProfileSnapshots.Add(new ProfileSnapshot
+        {
+            UserId = 2,
+            FetchedAt = DateTime.UtcNow,
+            Name = "Other User"
+        });
+        await context.SaveChangesAsync();
+
         var service = new ProfileService(context);
-        var result = await service.GetStatusAsync();
-        Assert.Null(result.LastSyncedAt);
-        Assert.Equal(0, result.ExperienceCount);
-        Assert.Equal(0, result.SkillCount);
+        var result = await service.GetLatestAsync(userId: 1);
+        Assert.Null(result);
     }
 
     [Fact]
-    public async Task GetStatus_WhenDataExists_ReturnsCorrectCounts()
+    public async Task GetStatus_WhenNoData_ReturnsNullTimestampAndHasProfileFalse()
+    {
+        using var context = CreateContext();
+        var service = new ProfileService(context);
+        var result = await service.GetStatusAsync(userId: 1);
+        Assert.Null(result.LastSyncedAt);
+        Assert.False(result.HasProfile);
+    }
+
+    [Fact]
+    public async Task GetStatus_WhenDataExists_ReturnsCorrectStatus()
     {
         using var context = CreateContext();
         var fetchedAt = DateTime.UtcNow;
         context.ProfileSnapshots.Add(new ProfileSnapshot
         {
+            UserId = 1,
             FetchedAt = fetchedAt,
-            Name = "Ahmed",
-            Experiences = new List<Experience>
-            {
-                new() { Title = "Dev", Company = "A" },
-                new() { Title = "Lead", Company = "B" }
-            },
-            Skills = new List<Skill> { new() { Name = "C#" } }
+            Name = "Ahmed"
         });
         await context.SaveChangesAsync();
 
         var service = new ProfileService(context);
-        var result = await service.GetStatusAsync();
+        var result = await service.GetStatusAsync(userId: 1);
 
         Assert.Equal(fetchedAt, result.LastSyncedAt);
-        Assert.Equal(2, result.ExperienceCount);
-        Assert.Equal(1, result.SkillCount);
+        Assert.True(result.HasProfile);
     }
 
     [Fact]
-    public async Task SaveProfile_WhenExistingData_ReplacesIt()
+    public async Task SaveProfile_AppendsSnapshot_DoesNotDeleteExisting()
     {
         using var context = CreateContext();
-        context.ProfileSnapshots.Add(new ProfileSnapshot { Name = "Old Name", FetchedAt = DateTime.UtcNow.AddDays(-1) });
+        context.ProfileSnapshots.Add(new ProfileSnapshot
+        {
+            UserId = 1,
+            Name = "Old Name",
+            FetchedAt = DateTime.UtcNow.AddDays(-1)
+        });
         await context.SaveChangesAsync();
 
         var service = new ProfileService(context);
-        await service.SaveProfileAsync(new ProfileData
+        await service.SaveProfileAsync(userId: 1, new ProfileData
         {
             Name = "Ahmed Omran",
             Headline = "Engineer",
@@ -115,9 +131,33 @@ public class ProfileServiceTests
             }
         });
 
-        Assert.Equal(1, await context.ProfileSnapshots.CountAsync());
-        var saved = await context.ProfileSnapshots.Include(p => p.Experiences).FirstAsync();
-        Assert.Equal("Ahmed Omran", saved.Name);
-        Assert.Single(saved.Experiences);
+        // Should have 2 snapshots now (appended, not replaced)
+        Assert.Equal(2, await context.ProfileSnapshots.CountAsync());
+        var latest = await context.ProfileSnapshots
+            .Include(p => p.Experiences)
+            .OrderByDescending(p => p.FetchedAt)
+            .FirstAsync();
+        Assert.Equal("Ahmed Omran", latest.Name);
+        Assert.Single(latest.Experiences);
+    }
+
+    [Fact]
+    public async Task GetById_WithWrongUserId_ReturnsNull()
+    {
+        using var context = CreateContext();
+        context.ProfileSnapshots.Add(new ProfileSnapshot
+        {
+            UserId = 1,
+            FetchedAt = DateTime.UtcNow,
+            Name = "Ahmed"
+        });
+        await context.SaveChangesAsync();
+
+        var snapshot = await context.ProfileSnapshots.FirstAsync();
+        var service = new ProfileService(context);
+
+        // User 2 should NOT be able to access user 1's snapshot
+        var result = await service.GetByIdAsync(userId: 2, snapshotId: snapshot.Id);
+        Assert.Null(result);
     }
 }
