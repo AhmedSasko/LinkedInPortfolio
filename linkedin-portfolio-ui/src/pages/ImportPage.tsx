@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 import { importProfile } from '../api/profileApi'
 
 export function ImportPage() {
@@ -28,7 +29,9 @@ export function ImportPage() {
 
         {mutation.isError && (
           <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
-            {mutation.error instanceof Error ? mutation.error.message : 'Import failed'}
+            {axios.isAxiosError(mutation.error) && mutation.error.response?.data?.message
+              ? mutation.error.response.data.message
+              : mutation.error instanceof Error ? mutation.error.message : 'Import failed'}
           </p>
         )}
 
