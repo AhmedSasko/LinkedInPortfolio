@@ -12,6 +12,12 @@ public sealed class ChromiumDownloaderService(ILogger<ChromiumDownloaderService>
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // When a system/container Chromium is configured, skip the download entirely
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PUPPETEER_EXECUTABLE_PATH")))
+        {
+            logger.LogInformation("PUPPETEER_EXECUTABLE_PATH is set — skipping Chromium download.");
+            return;
+        }
         logger.LogInformation("Downloading Chromium if needed...");
         await new BrowserFetcher().DownloadAsync();
         logger.LogInformation("Chromium ready.");

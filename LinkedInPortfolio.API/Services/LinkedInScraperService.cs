@@ -15,11 +15,14 @@ public class LinkedInScraperService(
         if (string.IsNullOrWhiteSpace(profileUrl))
             throw new ArgumentException("Profile URL cannot be empty.", nameof(profileUrl));
 
-        logger.LogInformation("Launching headless browser...");
+        var executablePath = Environment.GetEnvironmentVariable("PUPPETEER_EXECUTABLE_PATH");
+        logger.LogInformation("Launching headless browser{Path}...",
+            string.IsNullOrEmpty(executablePath) ? "" : $" ({executablePath})");
         await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions
         {
             Headless = true,
             DefaultViewport = null,
+            ExecutablePath = string.IsNullOrEmpty(executablePath) ? null : executablePath,
             Args = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
         });
 
