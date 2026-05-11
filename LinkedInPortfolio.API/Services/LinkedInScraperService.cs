@@ -1,47 +1,36 @@
 // LinkedInPortfolio.API/Services/LinkedInScraperService.cs
 using System.Text.Json;
 using PuppeteerSharp;
-using PuppeteerSharp.Input;
 
 namespace LinkedInPortfolio.API.Services;
 
-public class LinkedInScraperService(IConfiguration config, IHttpClientFactory httpClientFactory, ILogger<LinkedInScraperService> logger) : ILinkedInScraperService
+public class LinkedInScraperService(IHttpClientFactory httpClientFactory, ILogger<LinkedInScraperService> logger) : ILinkedInScraperService
 {
     private static readonly JsonSerializerOptions _jsonOpts = new() { PropertyNameCaseInsensitive = true };
 
-    public async Task<ProfileData> ScrapeProfileAsync()
+    public async Task<ProfileData> ScrapeProfileAsync(string profileUrl)
     {
         logger.LogInformation("Downloading Chromium if needed...");
         await new BrowserFetcher().DownloadAsync();
 
-        logger.LogInformation("Launching browser for manual login...");
+        logger.LogInformation("Launching headless browser...");
         await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions
         {
-            Headless = false,
+            Headless = true,
             DefaultViewport = null,
-            Args = ["--no-sandbox", "--disable-setuid-sandbox", "--start-maximized"]
+            Args = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
         });
 
         await using var page = await browser.NewPageAsync();
         await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36");
 
-        logger.LogInformation("Opening LinkedIn login page — waiting for user to log in...");
-        await page.GoToAsync("https://www.linkedin.com/login", new NavigationOptions { WaitUntil = [WaitUntilNavigation.DOMContentLoaded], Timeout = 60000 });
+        logger.LogInformation("Navigating to profile URL: {Url}", profileUrl);
+        await page.GoToAsync(profileUrl, new NavigationOptions { WaitUntil = [WaitUntilNavigation.DOMContentLoaded], Timeout = 60000 });
 
-        var deadline = DateTime.UtcNow.AddMinutes(3);
-        while (DateTime.UtcNow < deadline)
-        {
-            var url = page.Url;
-            if (url.Contains("linkedin.com") && !url.Contains("/login") && !url.Contains("/checkpoint"))
-                break;
-            await Task.Delay(1000);
-        }
-
-        if (page.Url.Contains("/login") || page.Url.Contains("/checkpoint"))
-            throw new TimeoutException("Login timeout — user did not complete LinkedIn login within 3 minutes.");
-
-        logger.LogInformation("Login detected. Navigating to profile...");
-        await page.GoToAsync("https://www.linkedin.com/in/me/", new NavigationOptions { WaitUntil = [WaitUntilNavigation.DOMContentLoaded], Timeout = 60000 });
+        var landedUrl = page.Url;
+        if (landedUrl.Contains("/login") || landedUrl.Contains("/authwall") || landedUrl.Contains("/checkpoint"))
+            throw new InvalidOperationException(
+                "Your LinkedIn profile is set to private. Go to LinkedIn → Settings → Visibility → Profile viewing options → set to Public, then try again.");
 
         // Wait for the name heading to appear before proceeding
         try { await page.WaitForSelectorAsync("h1", new WaitForSelectorOptions { Timeout = 15000 }); }
@@ -264,11 +253,8 @@ public class LinkedInScraperService(IConfiguration config, IHttpClientFactory ht
         try
         {
             if (string.IsNullOrEmpty(src) || src.StartsWith("data:")) return src ?? string.Empty;
-            var cookies = await page.GetCookiesAsync("https://www.linkedin.com");
-            var cookieHeader = string.Join("; ", cookies.Select(c => $"{c.Name}={c.Value}"));
             var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.Add("Cookie", cookieHeader);
             client.DefaultRequestHeaders.Add("Referer", "https://www.linkedin.com/");
             var bytes = await client.GetByteArrayAsync(src);
             return Convert.ToBase64String(bytes);
