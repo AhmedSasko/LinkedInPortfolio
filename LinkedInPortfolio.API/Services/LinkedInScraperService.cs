@@ -1,15 +1,20 @@
-// LinkedInPortfolio.API/Services/LinkedInScraperService.cs
 using System.Text.Json;
 using PuppeteerSharp;
 
 namespace LinkedInPortfolio.API.Services;
 
-public class LinkedInScraperService(IHttpClientFactory httpClientFactory, ILogger<LinkedInScraperService> logger) : ILinkedInScraperService
+public class LinkedInScraperService(
+    IHttpClientFactory httpClientFactory,
+    ILogger<LinkedInScraperService> logger,
+    IHostEnvironment env) : ILinkedInScraperService
 {
     private static readonly JsonSerializerOptions _jsonOpts = new() { PropertyNameCaseInsensitive = true };
 
     public async Task<ProfileData> ScrapeProfileAsync(string profileUrl)
     {
+        if (string.IsNullOrWhiteSpace(profileUrl))
+            throw new ArgumentException("Profile URL cannot be empty.", nameof(profileUrl));
+
         logger.LogInformation("Downloading Chromium if needed...");
         await new BrowserFetcher().DownloadAsync();
 
@@ -40,14 +45,16 @@ public class LinkedInScraperService(IHttpClientFactory httpClientFactory, ILogge
         await ScrollPageFully(page);
         await ExpandSections(page);
 
-        // Dump main document HTML for debugging
-        var mainHtml = await page.EvaluateExpressionAsync<string>("document.body.innerHTML");
-        var dumpPath = Path.Combine(Path.GetTempPath(), "linkedin_main.html");
-        await File.WriteAllTextAsync(dumpPath, mainHtml ?? string.Empty);
-        logger.LogInformation("Main document HTML saved to {Path} ({Size} bytes)", dumpPath, mainHtml?.Length ?? 0);
+        if (env.IsDevelopment())
+        {
+            var mainHtml = await page.EvaluateExpressionAsync<string>("document.body.innerHTML");
+            var dumpPath = Path.Combine(Path.GetTempPath(), "linkedin_main.html");
+            await File.WriteAllTextAsync(dumpPath, mainHtml ?? string.Empty);
+            logger.LogInformation("Main document HTML saved to {Path} ({Size} bytes)", dumpPath, mainHtml?.Length ?? 0);
+            var screenshotBytes = await page.ScreenshotDataAsync(new ScreenshotOptions { FullPage = true });
+            await File.WriteAllBytesAsync(Path.Combine(Path.GetTempPath(), "linkedin_profile.png"), screenshotBytes);
+        }
 
-        var screenshotBytes = await page.ScreenshotDataAsync(new ScreenshotOptions { FullPage = true });
-        await File.WriteAllBytesAsync(Path.Combine(Path.GetTempPath(), "linkedin_profile.png"), screenshotBytes);
         logger.LogInformation("Extracting profile data...");
         return await ExtractAll(page);
     }
@@ -254,9 +261,11 @@ public class LinkedInScraperService(IHttpClientFactory httpClientFactory, ILogge
         {
             if (string.IsNullOrEmpty(src) || src.StartsWith("data:")) return src ?? string.Empty;
             var client = httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.Add("Referer", "https://www.linkedin.com/");
-            var bytes = await client.GetByteArrayAsync(src);
+            using var request = new HttpRequestMessage(HttpMethod.Get, src);
+            request.Headers.Add("Referer", "https://www.linkedin.com/");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await client.SendAsync(request, cts.Token);
+            var bytes = await response.Content.ReadAsByteArrayAsync(cts.Token);
             return Convert.ToBase64String(bytes);
         }
         catch { return string.Empty; }
