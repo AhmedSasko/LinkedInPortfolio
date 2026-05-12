@@ -18,6 +18,7 @@ public class ProfileService(AppDbContext db) : IProfileService
             Location = data.Location,
             About = data.About,
             PhotoBase64 = data.PhotoBase64,
+            PhotoUrl = data.PhotoUrl,
             Experiences = data.Experiences.Select(e => new Experience
             {
                 Title = e.Title,

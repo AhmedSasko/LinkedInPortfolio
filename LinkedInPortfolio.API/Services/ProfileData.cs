@@ -8,6 +8,7 @@ public class ProfileData
     public string Location { get; set; } = string.Empty;
     public string About { get; set; } = string.Empty;
     public string PhotoBase64 { get; set; } = string.Empty;
+    public string PhotoUrl { get; set; } = string.Empty;
     public List<ExperienceData> Experiences { get; set; } = new();
     public List<EducationData> Educations { get; set; } = new();
     public List<SkillData> Skills { get; set; } = new();
