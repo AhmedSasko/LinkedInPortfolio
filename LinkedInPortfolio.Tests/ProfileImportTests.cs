@@ -5,7 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using LinkedInPortfolio.API.Data;
-using LinkedInPortfolio.API.Services;
+using LinkedInPortfolio.API.DTOs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -14,7 +14,6 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using Moq;
 
 namespace LinkedInPortfolio.Tests;
 
@@ -32,9 +31,6 @@ public class ProfileImportTests : IClassFixture<ProfileImportWebAppFactory>
     {
         _factory = factory;
         _client = factory.CreateClient();
-        // Reset shared mock state before each test — xUnit creates a new class instance
-        // per test but the IClassFixture factory (and its mock) is shared.
-        factory.ScraperMock.Reset();
     }
 
     private static string GenerateTestJwt(int userId = 1)
@@ -58,29 +54,12 @@ public class ProfileImportTests : IClassFixture<ProfileImportWebAppFactory>
     }
 
     [Fact]
-    public async Task Import_WithValidUrl_Returns200()
+    public async Task Update_WithValidData_Returns200()
     {
-        // Arrange: mock scraper returns valid ProfileData
-        _factory.ScraperMock
-            .Setup(s => s.ScrapeProfileAsync(It.IsAny<string>()))
-            .ReturnsAsync(new ProfileData
-            {
-                FetchedAt = DateTime.UtcNow,
-                Name = "Test User",
-                Headline = "Software Engineer",
-                Location = "Riyadh",
-                About = "About",
-                Experiences = new List<ExperienceData>(),
-                Educations = new List<EducationData>(),
-                Skills = new List<SkillData>(),
-                Projects = new List<ProjectData>(),
-                Certifications = new List<CertificationData>()
-            });
-
         // Register a user first so the user ID exists in the DB
         var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new
         {
-            email = "importuser@example.com",
+            email = "updateuser@example.com",
             password = "Password123!"
         });
         Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
@@ -88,12 +67,19 @@ public class ProfileImportTests : IClassFixture<ProfileImportWebAppFactory>
         // Get the actual user ID from the DB
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var user = db.Users.First(u => u.Email == "importuser@example.com");
+        var user = db.Users.First(u => u.Email == "updateuser@example.com");
 
         var jwt = GenerateTestJwt(user.Id);
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/profile/import")
+        var request = new HttpRequestMessage(HttpMethod.Put, "/api/profile")
         {
-            Content = JsonContent.Create(new { linkedInUrl = "https://www.linkedin.com/in/testuser" })
+            Content = JsonContent.Create(new UpdateProfileRequest
+            {
+                Name = "Test User",
+                Headline = "Software Engineer",
+                Location = "Riyadh",
+                About = "About me",
+                PhotoUrl = "https://example.com/photo.jpg"
+            })
         };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
 
@@ -105,70 +91,15 @@ public class ProfileImportTests : IClassFixture<ProfileImportWebAppFactory>
     }
 
     [Fact]
-    public async Task Import_WithInvalidUrl_Returns400()
+    public async Task Update_WithoutAuth_Returns401()
     {
-        // Register and get JWT
-        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new
+        var request = new HttpRequestMessage(HttpMethod.Put, "/api/profile")
         {
-            email = "invalidurl@example.com",
-            password = "Password123!"
-        });
-        Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
-
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var user = db.Users.First(u => u.Email == "invalidurl@example.com");
-
-        var jwt = GenerateTestJwt(user.Id);
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/profile/import")
-        {
-            Content = JsonContent.Create(new { linkedInUrl = "https://www.example.com/not-linkedin" })
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
-
-        var response = await _client.SendAsync(request);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Import_WithPrivateProfile_Returns400()
-    {
-        // Arrange: mock scraper throws InvalidOperationException
-        _factory.ScraperMock
-            .Setup(s => s.ScrapeProfileAsync(It.Is<string>(u => u.Contains("private"))))
-            .ThrowsAsync(new InvalidOperationException("This profile is private."));
-
-        // Register a user
-        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new
-        {
-            email = "privateprofile@example.com",
-            password = "Password123!"
-        });
-        Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
-
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var user = db.Users.First(u => u.Email == "privateprofile@example.com");
-
-        var jwt = GenerateTestJwt(user.Id);
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/profile/import")
-        {
-            Content = JsonContent.Create(new { linkedInUrl = "https://www.linkedin.com/in/private-user" })
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
-
-        var response = await _client.SendAsync(request);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Import_WithoutAuth_Returns401()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/profile/import")
-        {
-            Content = JsonContent.Create(new { linkedInUrl = "https://www.linkedin.com/in/testuser" })
+            Content = JsonContent.Create(new UpdateProfileRequest
+            {
+                Name = "Test User",
+                Headline = "Software Engineer"
+            })
         };
         // No Authorization header
 
@@ -179,13 +110,12 @@ public class ProfileImportTests : IClassFixture<ProfileImportWebAppFactory>
 }
 
 /// <summary>
-/// Custom WebApplicationFactory for profile import tests.
-/// Replaces MySQL with SQLite in-memory and mocks ILinkedInScraperService.
+/// Custom WebApplicationFactory for profile tests.
+/// Replaces MySQL with SQLite in-memory.
 /// </summary>
 public class ProfileImportWebAppFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _connection;
-    public Mock<ILinkedInScraperService> ScraperMock { get; } = new();
 
     public ProfileImportWebAppFactory()
     {
@@ -217,14 +147,6 @@ public class ProfileImportWebAppFactory : WebApplicationFactory<Program>
             // Add SQLite in-memory DB
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlite(_connection));
-
-            // Replace ILinkedInScraperService with mock
-            var scraperDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(ILinkedInScraperService));
-            if (scraperDescriptor != null)
-                services.Remove(scraperDescriptor);
-
-            services.AddScoped<ILinkedInScraperService>(_ => ScraperMock.Object);
         });
     }
 

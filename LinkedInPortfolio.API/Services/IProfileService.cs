@@ -10,4 +10,5 @@ public interface IProfileService
     Task<ProfileSnapshot?> GetByIdAsync(int userId, int snapshotId);
     Task<List<ProfileSummaryDto>> GetAllSummariesAsync();
     Task<SyncStatusDto> GetStatusAsync(int userId);
+    Task<ProfileSnapshot> UpdateProfileAsync(int userId, UpdateProfileRequest request);
 }

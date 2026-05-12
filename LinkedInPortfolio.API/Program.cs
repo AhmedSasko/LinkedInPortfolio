@@ -12,10 +12,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
 builder.Services.AddScoped<IProfileService, ProfileService>();
-builder.Services.AddScoped<ILinkedInScraperService, LinkedInScraperService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ILinkedInOAuthService, LinkedInOAuthService>();
-builder.Services.AddHostedService<ChromiumDownloaderService>();
 builder.Services.AddHttpClient();
 
 var jwtKey = builder.Configuration["Jwt:Key"]

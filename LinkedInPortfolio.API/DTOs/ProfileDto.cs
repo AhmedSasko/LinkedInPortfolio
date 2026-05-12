@@ -1,6 +1,18 @@
 namespace LinkedInPortfolio.API.DTOs;
 
-public record ImportRequest(string LinkedInUrl);
+public class UpdateProfileRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Headline { get; set; } = string.Empty;
+    public string Location { get; set; } = string.Empty;
+    public string About { get; set; } = string.Empty;
+    public string PhotoUrl { get; set; } = string.Empty;
+    public List<ExperienceDto> Experiences { get; set; } = new();
+    public List<EducationDto> Educations { get; set; } = new();
+    public List<SkillDto> Skills { get; set; } = new();
+    public List<ProjectDto> Projects { get; set; } = new();
+    public List<CertificationDto> Certifications { get; set; } = new();
+}
 
 public class ProfileSummaryDto
 {
@@ -20,6 +32,7 @@ public class ProfileDto
     public string Location { get; set; } = string.Empty;
     public string About { get; set; } = string.Empty;
     public string PhotoBase64 { get; set; } = string.Empty;
+    public string PhotoUrl { get; set; } = string.Empty;
     public List<ExperienceDto> Experiences { get; set; } = new();
     public List<EducationDto> Educations { get; set; } = new();
     public List<SkillDto> Skills { get; set; } = new();
