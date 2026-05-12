@@ -14,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<ILinkedInScraperService, LinkedInScraperService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ILinkedInOAuthService, LinkedInOAuthService>();
 builder.Services.AddHostedService<ChromiumDownloaderService>();
 builder.Services.AddHttpClient();
 
