@@ -11,6 +11,7 @@ public class ProfileSnapshot
     public string Location { get; set; } = string.Empty;
     public string About { get; set; } = string.Empty;
     public string PhotoBase64 { get; set; } = string.Empty;
+    public string PhotoUrl { get; set; } = string.Empty;
 
     public List<Experience> Experiences { get; set; } = new();
     public List<Education> Educations { get; set; } = new();

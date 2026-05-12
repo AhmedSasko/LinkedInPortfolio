@@ -21,6 +21,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(u => u.Email).IsUnique();
         });
 
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.LinkedInId)
+            .IsUnique()
+            .HasFilter("LinkedInId IS NOT NULL");
+
         modelBuilder.Entity<ProfileSnapshot>(e =>
         {
             e.Property(p => p.PhotoBase64).HasColumnType("longtext");

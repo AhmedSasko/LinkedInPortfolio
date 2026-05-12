@@ -46,9 +46,9 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
     {
         var normalised = email.Trim().ToLowerInvariant();
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalised);
-        if (user is null) return null;
+        if (user is null || user.PasswordHash is null) return null;
 
-        var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, password);
+        var result = _hasher.VerifyHashedPassword(user, user.PasswordHash!, password);
         if (result == PasswordVerificationResult.Failed) return null;
 
         if (result == PasswordVerificationResult.SuccessRehashNeeded)
