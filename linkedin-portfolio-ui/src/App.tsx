@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ImportPage } from './pages/ImportPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { useAuth } from './hooks/useAuth'
 
 const queryClient = new QueryClient()
@@ -23,6 +24,7 @@ export default function App() {
       <BrowserRouter>
         <div className="min-h-screen bg-gray-50">
           <Routes>
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/login" element={<AuthRedirect><LoginPage /></AuthRedirect>} />
             <Route path="/register" element={<AuthRedirect><RegisterPage /></AuthRedirect>} />
             <Route path="/" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
