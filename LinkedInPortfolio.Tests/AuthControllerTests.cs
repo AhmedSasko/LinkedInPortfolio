@@ -101,8 +101,8 @@ public class AuthControllerTests : IClassFixture<AuthWebAppFactory>
     [Fact]
     public async Task Login_LinkedInOnlyUser_ReturnsError()
     {
-        // A user with no password hash (LinkedIn-only) cannot log in with email/password
-        // We can't easily create a LinkedIn-only user via the API without a real OAuth flow,
+        // A user with no password hash (OAuth-only) cannot log in with email/password
+        // We can't easily create an OAuth-only user via the API without a real OAuth flow,
         // so we test the LoginAsync null-password guard indirectly:
         // Register a user normally, then test that wrong password returns 401
         await _client.PostAsJsonAsync("/api/auth/register",
@@ -115,16 +115,16 @@ public class AuthControllerTests : IClassFixture<AuthWebAppFactory>
     }
 
     [Fact]
-    public async Task LinkedIn_Login_RedirectsToLinkedIn()
+    public async Task Google_Login_RedirectsToGoogle()
     {
-        // GET /api/auth/linkedin should redirect (302) to LinkedIn's auth URL.
+        // GET /api/auth/google should redirect (302) to Google's auth URL.
         // Use a non-redirect-following client so we see the raw 302.
         using var noRedirectClient = _factory.CreateClient(
             new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var res = await noRedirectClient.GetAsync("/api/auth/linkedin");
+        var res = await noRedirectClient.GetAsync("/api/auth/google");
 
-        // Should be a redirect to LinkedIn (302/Found) or 400 if config missing
+        // Should be a redirect to Google (302/Found) or 400 if config missing
         Assert.True(res.StatusCode == HttpStatusCode.Redirect ||
                     res.StatusCode == HttpStatusCode.Found ||
                     res.StatusCode == HttpStatusCode.BadRequest,
@@ -172,11 +172,11 @@ public class AuthWebAppFactory : WebApplicationFactory<Program>
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlite(_connection));
 
-            // Replace ILinkedInOAuthService with a fake so LinkedIn endpoints work in tests
-            var oauthDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(ILinkedInOAuthService));
+            // Replace IGoogleOAuthService with a fake so Google endpoints work in tests
+            var oauthDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IGoogleOAuthService));
             if (oauthDescriptor != null)
                 services.Remove(oauthDescriptor);
-            services.AddSingleton<ILinkedInOAuthService, FakeLinkedInOAuthService>();
+            services.AddSingleton<IGoogleOAuthService, FakeGoogleOAuthService>();
         });
     }
 
@@ -189,20 +189,20 @@ public class AuthWebAppFactory : WebApplicationFactory<Program>
 }
 
 /// <summary>
-/// Fake LinkedIn OAuth service for tests — returns a deterministic URL without needing real config.
+/// Fake Google OAuth service for tests — returns a deterministic URL without needing real config.
 /// </summary>
-public class FakeLinkedInOAuthService : ILinkedInOAuthService
+public class FakeGoogleOAuthService : IGoogleOAuthService
 {
     public string GetAuthorizationUrl(string state) =>
-        $"https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=test&state={state}";
+        $"https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=test&state={state}";
 
-    public Task<LinkedInUserInfo> ExchangeCodeAsync(string code, string redirectUri) =>
-        Task.FromResult(new LinkedInUserInfo(
+    public Task<OAuthUserInfo> ExchangeCodeAsync(string code, string redirectUri) =>
+        Task.FromResult(new OAuthUserInfo(
             Sub: "fake-sub",
             Name: "Fake User",
             GivenName: "Fake",
             FamilyName: "User",
-            Email: "fake@linkedin.com",
+            Email: "fake@google.com",
             EmailVerified: true,
             Picture: null));
 }

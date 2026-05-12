@@ -2,8 +2,8 @@ using LinkedInPortfolio.API.DTOs;
 
 namespace LinkedInPortfolio.API.Services;
 
-public interface ILinkedInOAuthService
+public interface IGoogleOAuthService
 {
     string GetAuthorizationUrl(string state);
-    Task<LinkedInUserInfo> ExchangeCodeAsync(string code, string redirectUri);
+    Task<OAuthUserInfo> ExchangeCodeAsync(string code, string redirectUri);
 }

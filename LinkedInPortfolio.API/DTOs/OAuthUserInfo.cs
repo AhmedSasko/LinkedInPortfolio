@@ -1,6 +1,6 @@
 namespace LinkedInPortfolio.API.DTOs;
 
-public record LinkedInUserInfo(
+public record OAuthUserInfo(
     string Sub,
     string Name,
     string? GivenName,

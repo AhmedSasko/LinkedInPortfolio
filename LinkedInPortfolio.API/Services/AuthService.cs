@@ -60,9 +60,9 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
         return new AuthResponseDto(GenerateToken(user));
     }
 
-    public async Task<AuthResponseDto> HandleLinkedInLoginAsync(LinkedInUserInfo userInfo)
+    public async Task<AuthResponseDto> HandleGoogleLoginAsync(OAuthUserInfo userInfo)
     {
-        // 1. Try find user by LinkedInId
+        // 1. Try find user by LinkedInId (reused field for Google sub)
         var user = await db.Users.FirstOrDefaultAsync(u => u.LinkedInId == userInfo.Sub);
 
         // 2. If not found, try find by email
@@ -71,7 +71,7 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
             var normalised = userInfo.Email.Trim().ToLowerInvariant();
             user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalised);
 
-            // 3. Found by email but no LinkedInId set — link the account
+            // 3. Found by email but no OAuth sub set — link the account
             if (user is not null && user.LinkedInId is null)
             {
                 user.LinkedInId = userInfo.Sub;
@@ -84,7 +84,7 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
         {
             var isFirst = !await db.Users.AnyAsync();
             var email = string.IsNullOrEmpty(userInfo.Email)
-                ? $"{userInfo.Sub}@linkedin.local"
+                ? $"{userInfo.Sub}@google.local"
                 : userInfo.Email.Trim().ToLowerInvariant();
 
             user = new User

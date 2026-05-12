@@ -10,10 +10,10 @@ services:
       Jwt__Issuer: "LinkedInPortfolio"
       Jwt__Audience: "LinkedInPortfolio"
       Jwt__ExpiryDays: "7"
-      LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
-      LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
-      LinkedIn__RedirectUri: http://localhost:3000/api/auth/linkedin/callback
-      LinkedIn__FrontendCallbackUrl: http://localhost:3000/auth/callback
+      Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Google__RedirectUri: http://localhost:3000/api/auth/google/callback
+      Google__FrontendCallbackUrl: http://localhost:3000/auth/callback
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

@@ -9,7 +9,7 @@ namespace LinkedInPortfolio.API.Controllers;
 [Route("api/auth")]
 public class AuthController(
     IAuthService authService,
-    ILinkedInOAuthService linkedInOAuth,
+    IGoogleOAuthService googleOAuth,
     IConfiguration configuration) : ControllerBase
 {
     [HttpPost("register")]
@@ -44,42 +44,42 @@ public class AuthController(
         return Ok(result);
     }
 
-    [HttpGet("linkedin")]
+    [HttpGet("google")]
     [AllowAnonymous]
-    public IActionResult LinkedInLogin()
+    public IActionResult GoogleLogin()
     {
         var state = Guid.NewGuid().ToString("N");
         // Store state in a short-lived cookie for CSRF protection
-        Response.Cookies.Append("li_state", state, new CookieOptions
+        Response.Cookies.Append("g_state", state, new CookieOptions
         {
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
             MaxAge = TimeSpan.FromMinutes(10)
         });
-        var url = linkedInOAuth.GetAuthorizationUrl(state);
+        var url = googleOAuth.GetAuthorizationUrl(state);
         return Redirect(url);
     }
 
-    [HttpGet("linkedin/callback")]
+    [HttpGet("google/callback")]
     [AllowAnonymous]
-    public async Task<IActionResult> LinkedInCallback([FromQuery] string code, [FromQuery] string state)
+    public async Task<IActionResult> GoogleCallback([FromQuery] string code, [FromQuery] string state)
     {
         // Validate state to prevent CSRF
-        if (!Request.Cookies.TryGetValue("li_state", out var savedState) || savedState != state)
+        if (!Request.Cookies.TryGetValue("g_state", out var savedState) || savedState != state)
             return BadRequest("Invalid state parameter.");
-        Response.Cookies.Delete("li_state");
+        Response.Cookies.Delete("g_state");
 
-        var redirectUri = configuration["LinkedIn:RedirectUri"]!;
-        var frontendCallback = configuration["LinkedIn:FrontendCallbackUrl"]!;
+        var redirectUri = configuration["Google:RedirectUri"]!;
+        var frontendCallback = configuration["Google:FrontendCallbackUrl"]!;
 
-        LinkedInUserInfo userInfo;
-        try { userInfo = await linkedInOAuth.ExchangeCodeAsync(code, redirectUri); }
+        OAuthUserInfo userInfo;
+        try { userInfo = await googleOAuth.ExchangeCodeAsync(code, redirectUri); }
         catch (Exception ex)
         {
             return Redirect($"{frontendCallback}?error={Uri.EscapeDataString(ex.Message)}");
         }
 
-        var authResult = await authService.HandleLinkedInLoginAsync(userInfo);
+        var authResult = await authService.HandleGoogleLoginAsync(userInfo);
 
         // ProfileController's GET /api/profile/latest returns 404 if no profile, frontend handles it
         return Redirect($"{frontendCallback}?token={Uri.EscapeDataString(authResult.Token)}");
