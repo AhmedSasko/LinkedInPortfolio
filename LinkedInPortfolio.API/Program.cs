@@ -14,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGoogleOAuthService, GoogleOAuthService>();
+builder.Services.AddScoped<ILinkedInScraperService, LinkedInScraperService>();
 builder.Services.AddHttpClient();
 
 var jwtKey = builder.Configuration["Jwt:Key"]

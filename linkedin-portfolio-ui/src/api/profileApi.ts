@@ -42,3 +42,8 @@ export async function updateProfile(data: UpdateProfileRequest): Promise<Profile
   const res = await api.put<ProfileDto>('/profile', data)
   return res.data
 }
+
+export async function scrapeProfile(linkedInUrl: string, liAtCookie: string): Promise<ProfileDto> {
+  const res = await api.post<ProfileDto>('/profile/scrape', { linkedInUrl, liAtCookie })
+  return res.data
+}

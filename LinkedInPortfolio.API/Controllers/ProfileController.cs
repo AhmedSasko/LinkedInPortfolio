@@ -10,12 +10,34 @@ namespace LinkedInPortfolio.API.Controllers;
 [ApiController]
 [Route("api/profile")]
 [Authorize]
-public class ProfileController(IProfileService profileService) : ControllerBase
+public class ProfileController(IProfileService profileService, ILinkedInScraperService scraperService) : ControllerBase
 {
     private bool TryGetUserId(out int userId)
     {
         var value = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         return int.TryParse(value, out userId);
+    }
+
+    [HttpPost("scrape")]
+    public async Task<IActionResult> Scrape([FromBody] ScrapeRequest request)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+
+        if (!Uri.TryCreate(request.LinkedInUrl, UriKind.Absolute, out var uri) ||
+            !uri.Host.EndsWith("linkedin.com") ||
+            !uri.AbsolutePath.StartsWith("/in/"))
+            return BadRequest(new { message = "Please provide a valid LinkedIn profile URL (e.g. https://www.linkedin.com/in/username)." });
+
+        try
+        {
+            var data = await scraperService.ScrapeProfileAsync(request.LinkedInUrl, request.LiAtCookie);
+            var snapshot = await profileService.SaveProfileAsync(userId, data);
+            return Ok(MapToDto(snapshot));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut]

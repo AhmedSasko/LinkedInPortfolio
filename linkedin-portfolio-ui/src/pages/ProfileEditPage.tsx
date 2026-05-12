@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchProfile, updateProfile } from '../api/profileApi'
+import axios from 'axios'
+import { fetchProfile, updateProfile, scrapeProfile } from '../api/profileApi'
 import type { UpdateProfileRequest, ExperienceDto, EducationDto, SkillDto, ProjectDto, CertificationDto } from '../types/profile'
 
 const emptyExperience = (): ExperienceDto => ({ title: '', company: '', startDate: '', endDate: '', description: '', isCurrent: false })
@@ -41,6 +42,30 @@ export function ProfileEditPage() {
     }
   }, [profile])
 
+  const [showSync, setShowSync] = useState(false)
+  const [syncUrl, setSyncUrl] = useState('')
+  const [syncCookie, setSyncCookie] = useState('')
+
+  const syncMutation = useMutation({
+    mutationFn: () => scrapeProfile(syncUrl, syncCookie),
+    onSuccess: (data) => {
+      setForm({
+        name: data.name ?? '',
+        headline: data.headline ?? '',
+        location: data.location ?? '',
+        about: data.about ?? '',
+        photoUrl: data.photoUrl ?? '',
+        experiences: data.experiences ?? [],
+        educations: data.educations ?? [],
+        skills: data.skills ?? [],
+        projects: data.projects ?? [],
+        certifications: data.certifications ?? [],
+      })
+      setShowSync(false)
+      queryClient.invalidateQueries({ queryKey: ['profile'] })
+    },
+  })
+
   const mutation = useMutation({
     mutationFn: () => updateProfile(form),
     onSuccess: () => {
@@ -75,6 +100,61 @@ export function ProfileEditPage() {
         {mutation.isError && (
           <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">Failed to save. Please try again.</p>
         )}
+
+        {/* Sync from LinkedIn */}
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-blue-900">Sync from LinkedIn</h2>
+              <p className="text-sm text-blue-600 mt-0.5">Auto-fill your profile from your LinkedIn page</p>
+            </div>
+            <button
+              onClick={() => setShowSync(v => !v)}
+              className="text-sm text-blue-700 hover:text-blue-900 font-medium"
+            >
+              {showSync ? 'Cancel' : 'Set up'}
+            </button>
+          </div>
+
+          {showSync && (
+            <div className="space-y-3">
+              <Field label="Your LinkedIn Profile URL">
+                <input
+                  className={inputCls}
+                  value={syncUrl}
+                  onChange={e => setSyncUrl(e.target.value)}
+                  placeholder="https://www.linkedin.com/in/yourname"
+                />
+              </Field>
+              <Field label="LinkedIn Session Cookie (li_at)">
+                <input
+                  className={inputCls}
+                  type="password"
+                  value={syncCookie}
+                  onChange={e => setSyncCookie(e.target.value)}
+                  placeholder="Paste your li_at cookie value"
+                />
+                <p className="text-xs text-blue-500 mt-1">
+                  From browser DevTools → Application → Cookies → linkedin.com
+                </p>
+              </Field>
+              {syncMutation.isError && (
+                <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+                  {axios.isAxiosError(syncMutation.error) && syncMutation.error.response?.data?.message
+                    ? syncMutation.error.response.data.message
+                    : 'Sync failed. Please check your cookie and try again.'}
+                </p>
+              )}
+              <button
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending || !syncUrl || !syncCookie}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold rounded-xl transition-colors"
+              >
+                {syncMutation.isPending ? 'Syncing\u2026 (30\u201360s)' : 'Sync Profile'}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Basic Info */}
         <Section title="Basic Info">

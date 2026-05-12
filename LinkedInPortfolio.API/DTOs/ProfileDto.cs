@@ -1,5 +1,7 @@
 namespace LinkedInPortfolio.API.DTOs;
 
+public record ScrapeRequest(string LinkedInUrl, string LiAtCookie);
+
 public class UpdateProfileRequest
 {
     public string Name { get; set; } = string.Empty;
