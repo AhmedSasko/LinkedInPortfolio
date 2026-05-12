@@ -1,12 +1,16 @@
 using LinkedInPortfolio.API.DTOs;
 using LinkedInPortfolio.API.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LinkedInPortfolio.API.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(IAuthService authService) : ControllerBase
+public class AuthController(
+    IAuthService authService,
+    ILinkedInOAuthService linkedInOAuth,
+    IConfiguration configuration) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
@@ -38,5 +42,46 @@ public class AuthController(IAuthService authService) : ControllerBase
             return Unauthorized(new { message = "Invalid email or password." });
 
         return Ok(result);
+    }
+
+    [HttpGet("linkedin")]
+    [AllowAnonymous]
+    public IActionResult LinkedInLogin()
+    {
+        var state = Guid.NewGuid().ToString("N");
+        // Store state in a short-lived cookie for CSRF protection
+        Response.Cookies.Append("li_state", state, new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Lax,
+            MaxAge = TimeSpan.FromMinutes(10)
+        });
+        var url = linkedInOAuth.GetAuthorizationUrl(state);
+        return Redirect(url);
+    }
+
+    [HttpGet("linkedin/callback")]
+    [AllowAnonymous]
+    public async Task<IActionResult> LinkedInCallback([FromQuery] string code, [FromQuery] string state)
+    {
+        // Validate state to prevent CSRF
+        if (!Request.Cookies.TryGetValue("li_state", out var savedState) || savedState != state)
+            return BadRequest("Invalid state parameter.");
+        Response.Cookies.Delete("li_state");
+
+        var redirectUri = configuration["LinkedIn:RedirectUri"]!;
+        var frontendCallback = configuration["LinkedIn:FrontendCallbackUrl"]!;
+
+        LinkedInUserInfo userInfo;
+        try { userInfo = await linkedInOAuth.ExchangeCodeAsync(code, redirectUri); }
+        catch (Exception ex)
+        {
+            return Redirect($"{frontendCallback}?error={Uri.EscapeDataString(ex.Message)}");
+        }
+
+        var authResult = await authService.HandleLinkedInLoginAsync(userInfo);
+
+        // ProfileController's GET /api/profile/latest returns 404 if no profile, frontend handles it
+        return Redirect($"{frontendCallback}?token={Uri.EscapeDataString(authResult.Token)}");
     }
 }

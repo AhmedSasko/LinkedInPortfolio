@@ -60,6 +60,48 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
         return new AuthResponseDto(GenerateToken(user));
     }
 
+    public async Task<AuthResponseDto> HandleLinkedInLoginAsync(LinkedInUserInfo userInfo)
+    {
+        // 1. Try find user by LinkedInId
+        var user = await db.Users.FirstOrDefaultAsync(u => u.LinkedInId == userInfo.Sub);
+
+        // 2. If not found, try find by email
+        if (user is null && !string.IsNullOrEmpty(userInfo.Email))
+        {
+            var normalised = userInfo.Email.Trim().ToLowerInvariant();
+            user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalised);
+
+            // 3. Found by email but no LinkedInId set — link the account
+            if (user is not null && user.LinkedInId is null)
+            {
+                user.LinkedInId = userInfo.Sub;
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // 4. Not found at all — create new user
+        if (user is null)
+        {
+            var isFirst = !await db.Users.AnyAsync();
+            var email = string.IsNullOrEmpty(userInfo.Email)
+                ? $"{userInfo.Sub}@linkedin.local"
+                : userInfo.Email.Trim().ToLowerInvariant();
+
+            user = new User
+            {
+                Email = email,
+                PasswordHash = null,
+                LinkedInId = userInfo.Sub,
+                IsAdmin = isFirst,
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+        }
+
+        return new AuthResponseDto(GenerateToken(user));
+    }
+
     private string GenerateToken(User user)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]!));
