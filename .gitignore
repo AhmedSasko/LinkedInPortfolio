@@ -15,3 +15,12 @@ dist/
 
 # Chromium (downloaded by PuppeteerSharp at runtime)
 .local-chromium/
+
+# IDE
+.idea/
+
+# Playwright MCP logs/snapshots
+.playwright-mcp/
+
+# Superpowers planning docs (agent-generated, not source)
+docs/superpowers/
