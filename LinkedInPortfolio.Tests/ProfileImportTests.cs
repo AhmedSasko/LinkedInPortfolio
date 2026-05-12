@@ -1,9 +1,6 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Security.Claims;
-using System.Text;
 using LinkedInPortfolio.API.Data;
 using LinkedInPortfolio.API.DTOs;
 using Microsoft.AspNetCore.Hosting;
@@ -11,113 +8,105 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.Tokens;
+using Xunit;
 
 namespace LinkedInPortfolio.Tests;
 
-public class ProfileImportTests : IClassFixture<ProfileImportWebAppFactory>
+public class ProfileEditTests(ProfileEditWebAppFactory factory) : IClassFixture<ProfileEditWebAppFactory>
 {
-    // Must match appsettings.json Jwt config (used by JWT middleware)
-    private const string TestJwtKey = "dev-secret-key-must-be-at-least-32-characters-long!!";
-    private const string TestIssuer = "LinkedInPortfolio";
-    private const string TestAudience = "LinkedInPortfolio";
+    private readonly HttpClient _client = factory.CreateClient();
 
-    private readonly ProfileImportWebAppFactory _factory;
-    private readonly HttpClient _client;
+    private void AuthorizeAs(string token) =>
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-    public ProfileImportTests(ProfileImportWebAppFactory factory)
+    [Fact]
+    public async Task UpdateProfile_WithoutAuth_Returns401()
     {
-        _factory = factory;
-        _client = factory.CreateClient();
-    }
-
-    private static string GenerateTestJwt(int userId = 1)
-    {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(TestJwtKey));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var claims = new[]
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, $"user{userId}@test.com"),
-            new Claim("isAdmin", "false")
-        };
-        var token = new JwtSecurityToken(
-            issuer: TestIssuer,
-            audience: TestAudience,
-            claims: claims,
-            expires: DateTime.UtcNow.AddDays(1),
-            signingCredentials: creds);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        var res = await _client.PutAsJsonAsync("/api/profile", new UpdateProfileRequest { Name = "Test" });
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
     }
 
     [Fact]
-    public async Task Update_WithValidData_Returns200()
+    public async Task UpdateProfile_WithAuth_Returns200()
     {
-        // Register a user first so the user ID exists in the DB
-        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", new
+        // Register and login first
+        var regRes = await _client.PostAsJsonAsync("/api/auth/register",
+            new RegisterRequest("edit@test.com", "Password123!"));
+        var auth = await regRes.Content.ReadFromJsonAsync<AuthResponseDto>();
+        AuthorizeAs(auth!.Token);
+
+        var req = new UpdateProfileRequest
         {
-            email = "updateuser@example.com",
-            password = "Password123!"
+            Name = "Test User",
+            Headline = "Engineer",
+            Location = "Riyadh",
+            About = "About me",
+            Experiences = new() { new ExperienceDto { Title = "Dev", Company = "Acme", StartDate = "2020", EndDate = "", Description = "", IsCurrent = true } }
+        };
+
+        var res = await _client.PutAsJsonAsync("/api/profile", req);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        var profile = await res.Content.ReadFromJsonAsync<ProfileDto>();
+        Assert.Equal("Test User", profile!.Name);
+        Assert.Single(profile.Experiences);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_TwiceReplaces_NotAppends()
+    {
+        var regRes = await _client.PostAsJsonAsync("/api/auth/register",
+            new RegisterRequest("replace@test.com", "Password123!"));
+        var auth = await regRes.Content.ReadFromJsonAsync<AuthResponseDto>();
+        AuthorizeAs(auth!.Token);
+
+        // First save: 2 skills
+        await _client.PutAsJsonAsync("/api/profile", new UpdateProfileRequest
+        {
+            Name = "User",
+            Skills = new() { new SkillDto { Name = "C#" }, new SkillDto { Name = "Go" } }
         });
-        Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
 
-        // Get the actual user ID from the DB
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var user = db.Users.First(u => u.Email == "updateuser@example.com");
-
-        var jwt = GenerateTestJwt(user.Id);
-        var request = new HttpRequestMessage(HttpMethod.Put, "/api/profile")
+        // Second save: 1 skill — should replace, not append
+        var res = await _client.PutAsJsonAsync("/api/profile", new UpdateProfileRequest
         {
-            Content = JsonContent.Create(new UpdateProfileRequest
-            {
-                Name = "Test User",
-                Headline = "Software Engineer",
-                Location = "Riyadh",
-                About = "About me",
-                PhotoUrl = "https://example.com/photo.jpg"
-            })
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
+            Name = "User",
+            Skills = new() { new SkillDto { Name = "Rust" } }
+        });
 
-        // Act
-        var response = await _client.SendAsync(request);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var profile = await res.Content.ReadFromJsonAsync<ProfileDto>();
+        Assert.Single(profile!.Skills);
+        Assert.Equal("Rust", profile.Skills[0].Name);
     }
 
     [Fact]
-    public async Task Update_WithoutAuth_Returns401()
+    public async Task GetLatest_AfterUpdate_ReturnsUpdatedProfile()
     {
-        var request = new HttpRequestMessage(HttpMethod.Put, "/api/profile")
-        {
-            Content = JsonContent.Create(new UpdateProfileRequest
-            {
-                Name = "Test User",
-                Headline = "Software Engineer"
-            })
-        };
-        // No Authorization header
+        var regRes = await _client.PostAsJsonAsync("/api/auth/register",
+            new RegisterRequest("getlatest@test.com", "Password123!"));
+        var auth = await regRes.Content.ReadFromJsonAsync<AuthResponseDto>();
+        AuthorizeAs(auth!.Token);
 
-        var response = await _client.SendAsync(request);
+        await _client.PutAsJsonAsync("/api/profile", new UpdateProfileRequest { Name = "Latest User", Headline = "CTO" });
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var res = await _client.GetAsync("/api/profile/latest");
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var profile = await res.Content.ReadFromJsonAsync<ProfileDto>();
+        Assert.Equal("Latest User", profile!.Name);
+        Assert.Equal("CTO", profile.Headline);
     }
 }
 
 /// <summary>
-/// Custom WebApplicationFactory for profile tests.
+/// Custom WebApplicationFactory for profile edit tests.
 /// Replaces MySQL with SQLite in-memory.
 /// </summary>
-public class ProfileImportWebAppFactory : WebApplicationFactory<Program>
+public class ProfileEditWebAppFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _connection;
 
-    public ProfileImportWebAppFactory()
+    public ProfileEditWebAppFactory()
     {
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
