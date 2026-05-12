@@ -5,7 +5,7 @@ import { AdminPage } from './pages/AdminPage'
 import { ProfileDetailPage } from './pages/ProfileDetailPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
-import { ImportPage } from './pages/ImportPage'
+import { ProfileEditPage } from './pages/ProfileEditPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { useAuth } from './hooks/useAuth'
@@ -28,7 +28,7 @@ export default function App() {
             <Route path="/login" element={<AuthRedirect><LoginPage /></AuthRedirect>} />
             <Route path="/register" element={<AuthRedirect><RegisterPage /></AuthRedirect>} />
             <Route path="/" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
-            <Route path="/import" element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
+            <Route path="/edit" element={<ProtectedRoute><ProfileEditPage /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute>} />
             <Route path="/profile/:id" element={<ProtectedRoute><ProfileDetailPage /></ProtectedRoute>} />
           </Routes>

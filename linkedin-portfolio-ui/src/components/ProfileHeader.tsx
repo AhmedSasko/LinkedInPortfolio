@@ -1,11 +1,12 @@
 import type { ProfileDto } from '../types/profile'
 
-export function ProfileHeader({ name, headline, location, photoBase64 }: Pick<ProfileDto, 'name' | 'headline' | 'location' | 'photoBase64'>) {
+export function ProfileHeader({ name, headline, location, photoBase64, photoUrl }: Pick<ProfileDto, 'name' | 'headline' | 'location' | 'photoBase64' | 'photoUrl'>) {
+  const src = photoUrl || (photoBase64 ? `data:image/jpeg;base64,${photoBase64}` : null)
   return (
     <div className="flex items-center gap-6 bg-white rounded-2xl shadow p-8">
-      {photoBase64 ? (
+      {src ? (
         <img
-          src={`data:image/jpeg;base64,${photoBase64}`}
+          src={src}
           alt={name}
           className="w-32 h-32 rounded-full object-cover ring-4 ring-blue-100 shrink-0"
         />

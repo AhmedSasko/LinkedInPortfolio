@@ -25,8 +25,8 @@ function NavBar() {
       <div className="max-w-3xl mx-auto flex items-center justify-between">
         <span className="font-bold text-gray-900 text-lg">LinkedIn Portfolio</span>
         <div className="flex items-center gap-4">
-          <Link to="/import" className="text-sm text-blue-600 hover:underline">
-            Import Profile
+          <Link to="/edit" className="text-sm text-blue-600 hover:underline">
+            Edit Profile
           </Link>
           {isAdmin && (
             <Link to="/admin" className="text-sm text-blue-600 hover:underline">
@@ -73,8 +73,8 @@ export function PortfolioPage() {
       <NavBar />
       <div className="text-center py-20 text-gray-500">
         <p className="text-lg">No profile data yet.</p>
-        <Link to="/import" className="mt-3 inline-block text-blue-600 hover:underline">
-          Import your LinkedIn profile
+        <Link to="/edit" className="mt-3 inline-block text-blue-600 hover:underline">
+          Add your profile details
         </Link>
       </div>
     </>
@@ -89,6 +89,7 @@ export function PortfolioPage() {
           headline={profile.headline}
           location={profile.location}
           photoBase64={profile.photoBase64}
+          photoUrl={profile.photoUrl}
         />
         <AboutSection about={profile.about} />
         <ExperienceSection experience={profile.experiences} />

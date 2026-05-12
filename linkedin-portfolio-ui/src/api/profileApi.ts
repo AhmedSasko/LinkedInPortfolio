@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { ImportRequest, ProfileData, ProfileDto, ProfileStatusDto, ProfileSummaryDto } from '../types/profile'
+import type { UpdateProfileRequest, ProfileDto, ProfileStatusDto, ProfileSummaryDto } from '../types/profile'
 
 const api = axios.create({ baseURL: '/api' })
 
@@ -38,7 +38,7 @@ export async function fetchStatus(): Promise<ProfileStatusDto> {
   return res.data
 }
 
-export async function importProfile(req: ImportRequest): Promise<ProfileData> {
-  const res = await api.post<ProfileData>('/profile/import', req)
+export async function updateProfile(data: UpdateProfileRequest): Promise<ProfileDto> {
+  const res = await api.put<ProfileDto>('/profile', data)
   return res.data
 }

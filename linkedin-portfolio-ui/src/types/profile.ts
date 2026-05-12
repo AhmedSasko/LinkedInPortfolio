@@ -43,6 +43,20 @@ export interface ProfileDto {
   location: string
   about: string
   photoBase64: string
+  photoUrl?: string
+  experiences: ExperienceDto[]
+  educations: EducationDto[]
+  skills: SkillDto[]
+  projects: ProjectDto[]
+  certifications: CertificationDto[]
+}
+
+export interface UpdateProfileRequest {
+  name: string
+  headline: string
+  location: string
+  about: string
+  photoUrl?: string
   experiences: ExperienceDto[]
   educations: EducationDto[]
   skills: SkillDto[]
@@ -85,10 +99,3 @@ export interface AuthUser {
   isAdmin: boolean
 }
 
-// Import
-export interface ImportRequest {
-  linkedInUrl: string
-}
-
-// Alias used by importProfile
-export type ProfileData = ProfileDto
