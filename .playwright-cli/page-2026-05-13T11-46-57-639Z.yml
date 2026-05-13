@@ -1,0 +1,57 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - heading "LinkedIn AI" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Profile Intelligence
+    - navigation [ref=e8]:
+      - link "Dashboard" [ref=e9] [cursor=pointer]:
+        - /url: /
+        - img [ref=e10]
+        - text: Dashboard
+      - link "Portfolio" [ref=e15] [cursor=pointer]:
+        - /url: /portfolio
+        - img [ref=e16]
+        - text: Portfolio
+      - link "Edit Profile" [ref=e19] [cursor=pointer]:
+        - /url: /edit
+        - img [ref=e20]
+        - text: Edit Profile
+      - link "Analysis" [ref=e22] [cursor=pointer]:
+        - /url: /analysis
+        - img [ref=e23]
+        - text: Analysis
+      - link "Resume" [ref=e24] [cursor=pointer]:
+        - /url: /resume
+        - img [ref=e25]
+        - text: Resume
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: T
+        - generic [ref=e31]: test@test.com
+      - button "Sign out" [ref=e32]:
+        - img [ref=e33]
+        - text: Sign out
+  - main [ref=e36]:
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - heading "Dashboard" [level=2] [ref=e40]
+        - button "Run AI Analysis" [ref=e41]:
+          - img [ref=e42]
+          - text: Run AI Analysis
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - heading "Profile Score" [level=3] [ref=e46]
+          - generic [ref=e47]: Run analysis to see your score
+        - generic [ref=e48]:
+          - heading "Career Overview" [level=3] [ref=e49]
+          - paragraph [ref=e50]: No analysis yet
+        - generic [ref=e51]:
+          - heading "Seniority Level" [level=3] [ref=e52]
+          - paragraph [ref=e53]: No analysis yet
+      - generic [ref=e54]:
+        - generic [ref=e55]:
+          - heading "Score Breakdown" [level=3] [ref=e56]
+          - generic [ref=e57]: Run analysis to see breakdown
+        - generic [ref=e58]:
+          - heading "Top Improvements" [level=3] [ref=e59]
+          - generic [ref=e60]: No improvements yet

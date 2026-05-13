@@ -1,0 +1,100 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - heading "LinkedIn AI" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Profile Intelligence
+    - navigation [ref=e8]:
+      - link "Dashboard" [ref=e9] [cursor=pointer]:
+        - /url: /
+        - img [ref=e10]
+        - text: Dashboard
+      - link "Portfolio" [ref=e15] [cursor=pointer]:
+        - /url: /portfolio
+        - img [ref=e16]
+        - text: Portfolio
+      - link "Edit Profile" [ref=e19] [cursor=pointer]:
+        - /url: /edit
+        - img [ref=e20]
+        - text: Edit Profile
+      - link "Analysis" [ref=e22] [cursor=pointer]:
+        - /url: /analysis
+        - img [ref=e23]
+        - text: Analysis
+      - link "Resume" [ref=e24] [cursor=pointer]:
+        - /url: /resume
+        - img [ref=e25]
+        - text: Resume
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: S
+        - generic [ref=e31]: scrapetest@test.local
+      - button "Sign out" [ref=e32]:
+        - img [ref=e33]
+        - text: Sign out
+  - main [ref=e36]:
+    - generic [ref=e37]:
+      - heading "Edit Profile" [level=2] [ref=e40]
+      - generic [ref=e41]:
+        - heading "Import from LinkedIn" [level=3] [ref=e42]
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - button "Sync Name & Photo via LinkedIn" [ref=e45]:
+              - img [ref=e46]
+              - text: Sync Name & Photo via LinkedIn
+            - paragraph [ref=e51]: LinkedIn's API only provides name and profile photo. For full profile import use the cookie method below.
+          - generic [ref=e53]:
+            - generic [ref=e54]: Full profile import with li_at cookie
+            - textbox "https://www.linkedin.com/in/your-username" [disabled] [ref=e55]: https://www.linkedin.com/in/ahmed-omran-96611660
+            - generic [ref=e56]:
+              - textbox "Paste your li_at cookie value" [disabled] [ref=e57]: AQEDAWhXaxcCuSyqAAABniD3rO8AAAGeRQQw71YA0FXfeTZbC3e3IIpx4_Zaxbd49fYJKLeqk0iTppPOMALyiaYclFrNcotstUNJkMXUI7Ys9J8xHnx06fTt21wXBnVVvJez92x753IAW2Law-fQ8asF
+              - button "Scraping…" [disabled] [ref=e79]:
+                - generic [ref=e80]:
+                  - img [ref=e81]
+                  - text: Scraping…
+            - generic [ref=e83]:
+              - generic [ref=e84]:
+                - generic [ref=e85]: Scraping in progress…
+                - generic [ref=e86]: 0%
+              - list [ref=e88]:
+                - listitem [ref=e89]:
+                  - img [ref=e90]
+                  - generic [ref=e92]: Launching browser
+                - listitem [ref=e93]:
+                  - img [ref=e94]
+                  - generic [ref=e96]: Loading LinkedIn profile
+                - listitem [ref=e97]:
+                  - img [ref=e98]
+                  - generic [ref=e100]: Extracting name, headline & photo
+                - listitem [ref=e101]:
+                  - img [ref=e102]
+                  - generic [ref=e104]: Extracting work experience
+                - listitem [ref=e105]:
+                  - img [ref=e106]
+                  - generic [ref=e108]: Extracting education
+                - listitem [ref=e109]:
+                  - img [ref=e110]
+                  - generic [ref=e112]: Extracting skills
+                - listitem [ref=e113]:
+                  - img [ref=e114]
+                  - generic [ref=e116]: Extracting certifications & projects
+                - listitem [ref=e117]:
+                  - img [ref=e118]
+                  - generic [ref=e120]: Saving to your profile
+      - generic [ref=e59]:
+        - heading "Edit Manually" [level=3] [ref=e60]
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - generic [ref=e63]: Full Name
+            - textbox [ref=e64]
+          - generic [ref=e65]:
+            - generic [ref=e66]: Headline
+            - textbox [ref=e67]
+          - generic [ref=e68]:
+            - generic [ref=e69]: Location
+            - textbox [ref=e70]
+          - generic [ref=e71]:
+            - generic [ref=e72]: About
+            - textbox [ref=e73]
+          - button "Save Changes" [ref=e74]:
+            - img [ref=e75]
+            - text: Save Changes

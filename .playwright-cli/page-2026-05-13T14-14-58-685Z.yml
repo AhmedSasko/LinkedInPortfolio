@@ -1,0 +1,57 @@
+- generic [ref=e43]:
+  - complementary [ref=e44]:
+    - generic [ref=e45]:
+      - heading "LinkedIn AI" [level=1] [ref=e46]
+      - paragraph [ref=e47]: Profile Intelligence
+    - navigation [ref=e48]:
+      - link "Dashboard" [ref=e49] [cursor=pointer]:
+        - /url: /
+        - img [ref=e50]
+        - text: Dashboard
+      - link "Portfolio" [ref=e55] [cursor=pointer]:
+        - /url: /portfolio
+        - img [ref=e56]
+        - text: Portfolio
+      - link "Edit Profile" [ref=e59] [cursor=pointer]:
+        - /url: /edit
+        - img [ref=e60]
+        - text: Edit Profile
+      - link "Analysis" [ref=e62] [cursor=pointer]:
+        - /url: /analysis
+        - img [ref=e63]
+        - text: Analysis
+      - link "Resume" [ref=e64] [cursor=pointer]:
+        - /url: /resume
+        - img [ref=e65]
+        - text: Resume
+    - generic [ref=e68]:
+      - generic [ref=e69]:
+        - generic [ref=e70]: P
+        - generic [ref=e71]: playwrighttest@test.com
+      - button "Sign out" [ref=e72]:
+        - img [ref=e73]
+        - text: Sign out
+  - main [ref=e76]:
+    - generic [ref=e77]:
+      - generic [ref=e78]:
+        - heading "Dashboard" [level=2] [ref=e80]
+        - button "Run AI Analysis" [ref=e81]:
+          - img [ref=e82]
+          - text: Run AI Analysis
+      - generic [ref=e84]:
+        - generic [ref=e85]:
+          - heading "Profile Score" [level=3] [ref=e86]
+          - generic [ref=e87]: Run analysis to see your score
+        - generic [ref=e88]:
+          - heading "Career Overview" [level=3] [ref=e89]
+          - paragraph [ref=e90]: No analysis yet
+        - generic [ref=e91]:
+          - heading "Seniority Level" [level=3] [ref=e92]
+          - paragraph [ref=e93]: No analysis yet
+      - generic [ref=e94]:
+        - generic [ref=e95]:
+          - heading "Score Breakdown" [level=3] [ref=e96]
+          - generic [ref=e97]: Run analysis to see breakdown
+        - generic [ref=e98]:
+          - heading "Top Improvements" [level=3] [ref=e99]
+          - generic [ref=e100]: No improvements yet

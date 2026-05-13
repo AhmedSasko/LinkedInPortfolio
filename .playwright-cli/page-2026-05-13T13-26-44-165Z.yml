@@ -1,0 +1,57 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - heading "LinkedIn AI" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Profile Intelligence
+    - navigation [ref=e8]:
+      - link "Dashboard" [ref=e9] [cursor=pointer]:
+        - /url: /
+        - img [ref=e10]
+        - text: Dashboard
+      - link "Portfolio" [ref=e15] [cursor=pointer]:
+        - /url: /portfolio
+        - img [ref=e16]
+        - text: Portfolio
+      - link "Edit Profile" [ref=e19] [cursor=pointer]:
+        - /url: /edit
+        - img [ref=e20]
+        - text: Edit Profile
+      - link "Analysis" [ref=e22] [cursor=pointer]:
+        - /url: /analysis
+        - img [ref=e23]
+        - text: Analysis
+      - link "Resume" [ref=e24] [cursor=pointer]:
+        - /url: /resume
+        - img [ref=e25]
+        - text: Resume
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: S
+        - generic [ref=e31]: scrapetest@test.local
+      - button "Sign out" [ref=e32]:
+        - img [ref=e33]
+        - text: Sign out
+  - main [ref=e36]:
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - img "Ahmed Omran" [ref=e40]
+          - generic [ref=e41]:
+            - heading "Ahmed Omran" [level=2] [ref=e42]
+            - paragraph [ref=e43]: Technical Team Lead
+            - paragraph [ref=e44]:
+              - img [ref=e45]
+              - text: Riyadh, Saudi Arabia
+        - paragraph [ref=e48]: Experienced Senior Software Engineer with a demonstrated history of working in the information technology and services industry. Skilled in SharePoint, ASP.NET, MVC,SKELTA, K2, Team Foundation Server (TFS), ADO.NET, jQuery, and Databases ( SQL Server - Oracle ). Strong engineering professional with a Bachelor of Science (B.S.) focused in Computer Science from Zagazig University.
+      - generic [ref=e49]:
+        - heading "Experience" [level=3] [ref=e50]:
+          - img [ref=e52]
+          - text: Experience
+        - generic [ref=e56]:
+          - generic [ref=e58]: ذكاء المتقدمة لتقنية المعلومات
+          - generic [ref=e59]: — Present
+      - generic [ref=e60]:
+        - heading "Education" [level=3] [ref=e61]:
+          - img [ref=e63]
+          - text: Education
+        - generic [ref=e67]: College of Computers and Informatics

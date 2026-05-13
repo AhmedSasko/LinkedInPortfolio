@@ -1,0 +1,57 @@
+- generic [ref=e21]:
+  - complementary [ref=e22]:
+    - generic [ref=e23]:
+      - heading "LinkedIn AI" [level=1] [ref=e24]
+      - paragraph [ref=e25]: Profile Intelligence
+    - navigation [ref=e26]:
+      - link "Dashboard" [ref=e27] [cursor=pointer]:
+        - /url: /
+        - img [ref=e28]
+        - text: Dashboard
+      - link "Portfolio" [ref=e33] [cursor=pointer]:
+        - /url: /portfolio
+        - img [ref=e34]
+        - text: Portfolio
+      - link "Edit Profile" [ref=e37] [cursor=pointer]:
+        - /url: /edit
+        - img [ref=e38]
+        - text: Edit Profile
+      - link "Analysis" [ref=e40] [cursor=pointer]:
+        - /url: /analysis
+        - img [ref=e41]
+        - text: Analysis
+      - link "Resume" [ref=e42] [cursor=pointer]:
+        - /url: /resume
+        - img [ref=e43]
+        - text: Resume
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - generic [ref=e48]: S
+        - generic [ref=e49]: scrapetest@test.local
+      - button "Sign out" [ref=e50]:
+        - img [ref=e51]
+        - text: Sign out
+  - main [ref=e54]:
+    - generic [ref=e55]:
+      - generic [ref=e56]:
+        - heading "Dashboard" [level=2] [ref=e58]
+        - button "Run AI Analysis" [ref=e59]:
+          - img [ref=e60]
+          - text: Run AI Analysis
+      - generic [ref=e62]:
+        - generic [ref=e63]:
+          - heading "Profile Score" [level=3] [ref=e64]
+          - generic [ref=e65]: Run analysis to see your score
+        - generic [ref=e66]:
+          - heading "Career Overview" [level=3] [ref=e67]
+          - paragraph [ref=e68]: No analysis yet
+        - generic [ref=e69]:
+          - heading "Seniority Level" [level=3] [ref=e70]
+          - paragraph [ref=e71]: No analysis yet
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - heading "Score Breakdown" [level=3] [ref=e74]
+          - generic [ref=e75]: Run analysis to see breakdown
+        - generic [ref=e76]:
+          - heading "Top Improvements" [level=3] [ref=e77]
+          - generic [ref=e78]: No improvements yet

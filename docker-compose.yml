@@ -1,0 +1,145 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: linkedinai-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-LinkedInAI}
+      MYSQL_USER: ${MYSQL_USER:-linkedinai_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-linkedinai_pass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - linkedinai-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: linkedinai-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - linkedinai-net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: linkedinai-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - linkedinai-net
+
+  api:
+    build:
+      context: ./src/LinkedInAI.API
+      dockerfile: Dockerfile
+    container_name: linkedinai-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__DefaultConnection: "Server=mysql;Port=3306;Database=LinkedInAI;User=${MYSQL_USER:-linkedinai_app};Password=${MYSQL_PASSWORD:-linkedinai_pass};"
+      Jwt__Key: ${Jwt__Key:-your-super-secret-jwt-key-min-32-chars-here}
+      Jwt__Issuer: ${Jwt__Issuer:-LinkedInAI}
+      Jwt__Audience: ${Jwt__Audience:-LinkedInAI}
+      Google__ClientId: ${Google__ClientId:-}
+      Google__ClientSecret: ${Google__ClientSecret:-}
+      Google__CallbackUrl: ${Google__CallbackUrl:-http://localhost:3000/auth/callback?provider=google}
+      LinkedIn__ClientId: ${LinkedIn__ClientId:-}
+      LinkedIn__ClientSecret: ${LinkedIn__ClientSecret:-}
+      LinkedIn__CallbackUrl: ${LinkedIn__CallbackUrl:-http://localhost:3000/auth/callback?provider=linkedin}
+      Redis__ConnectionString: "redis:6379"
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__User: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
+      RabbitMQ__VHost: "/"
+      Frontend__BaseUrl: ${Frontend__BaseUrl:-http://localhost:3000}
+      Puppeteer__ExecutablePath: /usr/bin/chromium
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - linkedinai-net
+    restart: unless-stopped
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: linkedinai-ai
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/"
+      REDIS_URL: "redis://redis:6379/0"
+      SPACY_MODEL: ${SPACY_MODEL:-en_core_web_sm}
+    ports:
+      - "8000:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - linkedinai-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: linkedinai-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - api
+    networks:
+      - linkedinai-net
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  linkedinai-net:
+    driver: bridge

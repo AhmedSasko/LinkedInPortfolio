@@ -1,0 +1,25 @@
+- generic [ref=e3]:
+  - img "Logo" [ref=e5]
+  - paragraph [ref=e6]: مرحبا بك 👋
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]: اسم المستخدم أو البريد الإلكتروني
+      - textbox "اسم المستخدم أو البريد الإلكتروني" [active] [ref=e12]:
+        - /placeholder: أدخل اسم المستخدم أو البريد الإلكتروني
+    - generic [ref=e13]:
+      - generic [ref=e14]: كلمة المرور
+      - generic [ref=e16]:
+        - textbox "أدخل كلمة المرور" [ref=e17]
+        - button "إظهار كلمة المرور" [ref=e18] [cursor=pointer]:
+          - img [ref=e19]
+    - generic [ref=e22]:
+      - generic [ref=e23] [cursor=pointer]:
+        - checkbox "تذكرني" [ref=e24]
+        - text: تذكرني
+      - link "نسيت كلمة المرور؟" [ref=e25] [cursor=pointer]:
+        - /url: /Account/ForgotPassword?returnUrl=%2Fconnect%2Fauthorize%3Fresponse_type%3Dcode%26client_id%3DManagement_App%26state%3DUS1zbDhwMDZ1alNkRS40amVtVTVZdlBYSjI2OEJBY09uUVRKakk4UERyWU9u%3B%25252F%26redirect_uri%3Dhttp%253A%252F%252Flocalhost%253A4200%26scope%3Dopenid%2520offline_access%2520Management%26code_challenge%3DlMOVpXWmi0amzApZZfC0oWxxVA8rI4FzO6vUiMCaG8Y%26code_challenge_method%3DS256%26nonce%3DUS1zbDhwMDZ1alNkRS40amVtVTVZdlBYSjI2OEJBY09uUVRKakk4UERyWU9u%26culture%3Dar%26ui-culture%3Dar%26returnUrl%3D%252F
+    - button "تسجيل الدخول" [ref=e26] [cursor=pointer]
+    - generic [ref=e27]:
+      - text: ليس لديك حساب؟
+      - link "إنشاء حساب جديد" [ref=e28] [cursor=pointer]:
+        - /url: /Account/Register?returnUrl=%2Fconnect%2Fauthorize%3Fresponse_type%3Dcode%26client_id%3DManagement_App%26state%3DUS1zbDhwMDZ1alNkRS40amVtVTVZdlBYSjI2OEJBY09uUVRKakk4UERyWU9u%3B%25252F%26redirect_uri%3Dhttp%253A%252F%252Flocalhost%253A4200%26scope%3Dopenid%2520offline_access%2520Management%26code_challenge%3DlMOVpXWmi0amzApZZfC0oWxxVA8rI4FzO6vUiMCaG8Y%26code_challenge_method%3DS256%26nonce%3DUS1zbDhwMDZ1alNkRS40amVtVTVZdlBYSjI2OEJBY09uUVRKakk4UERyWU9u%26culture%3Dar%26ui-culture%3Dar%26returnUrl%3D%252F

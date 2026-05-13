@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LinkedInAI.API/LinkedInAI.API.csproj" />
+    <Project Path="src/LinkedInAI.Tests/LinkedInAI.Tests.csproj" />
+  </Folder>
+</Solution>

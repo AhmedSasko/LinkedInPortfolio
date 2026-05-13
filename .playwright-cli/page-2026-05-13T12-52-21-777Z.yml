@@ -1,0 +1,187 @@
+- generic [ref=e5]:
+  - complementary [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]: ⚙
+      - generic [ref=e10]:
+        - generic [ref=e11]: ITSM
+        - generic [ref=e12]: Tuwaiq Academy
+    - navigation "Main navigation" [ref=e13]:
+      - link " لوحة التحكم" [ref=e14] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e15]: 
+        - generic [ref=e16]: لوحة التحكم
+      - generic [ref=e17]: الدعم
+      - link " التذاكر" [ref=e18] [cursor=pointer]:
+        - /url: /tickets
+        - generic [ref=e19]: 
+        - generic [ref=e20]: التذاكر
+      - link " موافقاتي" [ref=e21] [cursor=pointer]:
+        - /url: /my-approvals
+        - generic [ref=e22]: 
+        - generic [ref=e23]: موافقاتي
+      - link " كتالوج الخدمات" [ref=e24] [cursor=pointer]:
+        - /url: /service-catalog
+        - generic [ref=e25]: 
+        - generic [ref=e26]: كتالوج الخدمات
+      - link " قاعدة المعرفة" [ref=e27] [cursor=pointer]:
+        - /url: /knowledge-base
+        - generic [ref=e28]: 
+        - generic [ref=e29]: قاعدة المعرفة
+      - generic [ref=e30]: الأصول وتقنية المعلومات
+      - link " الأصول" [ref=e31] [cursor=pointer]:
+        - /url: /assets
+        - generic [ref=e32]: 
+        - generic [ref=e33]: الأصول
+      - link " البرمجيات" [ref=e34] [cursor=pointer]:
+        - /url: /software
+        - generic [ref=e35]: 
+        - generic [ref=e36]: البرمجيات
+      - link " الموردون" [ref=e37] [cursor=pointer]:
+        - /url: /vendors
+        - generic [ref=e38]: 
+        - generic [ref=e39]: الموردون
+      - link " العقود" [ref=e40] [cursor=pointer]:
+        - /url: /contracts
+        - generic [ref=e41]: 
+        - generic [ref=e42]: العقود
+      - generic [ref=e43]: الإعدادات
+      - link " قوالب سير العمل" [ref=e44] [cursor=pointer]:
+        - /url: /workflow-templates
+        - generic [ref=e45]: 
+        - generic [ref=e46]: قوالب سير العمل
+      - link " المواقع" [ref=e47] [cursor=pointer]:
+        - /url: /locations
+        - generic [ref=e48]: 
+        - generic [ref=e49]: المواقع
+      - link " التقارير" [ref=e50] [cursor=pointer]:
+        - /url: /reports
+        - generic [ref=e51]: 
+        - generic [ref=e52]: التقارير
+    - generic [ref=e53]:
+      - generic [ref=e54]: A
+      - generic [ref=e55]:
+        - generic [ref=e56]: admin
+        - generic [ref=e57]: admin
+      - link "User settings" [ref=e58] [cursor=pointer]:
+        - /url: /setting-management
+        - generic [ref=e59]: 
+  - generic [ref=e60]:
+    - banner [ref=e62]:
+      - navigation "Breadcrumb" [ref=e63]:
+        - list [ref=e64]:
+          - listitem [ref=e65]:
+            - generic [ref=e66]: الرئيسية
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - generic: 
+          - searchbox "بحث..." [ref=e69]
+        - button "الإشعارات" [ref=e70] [cursor=pointer]:
+          - generic [ref=e71]: 
+        - button "+ تذكرة جديدة" [ref=e72] [cursor=pointer]
+        - button "Switch to English" [ref=e73] [cursor=pointer]:
+          - generic [ref=e74]: 
+          - generic [ref=e75]: EN
+        - generic [ref=e76]:
+          - button "admin" [expanded] [active] [ref=e77] [cursor=pointer]:
+            - generic [ref=e78]: A
+            - generic [ref=e79]: admin
+            - generic [ref=e80]: 
+          - menu [ref=e175]:
+            - menuitem "Topbar:MyAccount" [ref=e176] [cursor=pointer]:
+              - generic [ref=e177]: 
+              - generic [ref=e178]: Topbar:MyAccount
+            - menuitem "Topbar:ChangePassword" [ref=e179] [cursor=pointer]:
+              - generic [ref=e180]: 
+              - generic [ref=e181]: Topbar:ChangePassword
+            - menuitem "Topbar:Logout" [ref=e183] [cursor=pointer]:
+              - generic [ref=e184]: 
+              - generic [ref=e185]: Topbar:Logout
+    - main [ref=e81]:
+      - generic [ref=e83]:
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - generic [ref=e86]: أهلاً، admin 👋
+            - generic [ref=e87]: الأربعاء, 13 مايو 2026
+          - button "📥 تصدير" [ref=e88] [cursor=pointer]
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - generic [ref=e91]: التذاكر المفتوحة
+            - generic [ref=e92]: "4"
+            - generic [ref=e93]: ↑ 0 اليوم
+          - generic [ref=e94]:
+            - generic [ref=e95]: خرق اتفاقية الخدمة
+            - generic [ref=e96]: "3"
+            - generic [ref=e97]: ⚠ تصرف الآن
+          - generic [ref=e98]:
+            - generic [ref=e99]: غير معينة
+            - generic [ref=e100]: "4"
+            - generic [ref=e101]: ← عيّن الآن
+          - generic [ref=e102]:
+            - generic [ref=e103]: الامتثال لـ SLA
+            - generic [ref=e104]: 25%
+          - generic [ref=e107]:
+            - generic [ref=e108]: التذاكر الحرجة
+            - generic [ref=e109]: "1"
+            - generic [ref=e110]: 3 أولوية عالية
+        - generic [ref=e111]:
+          - generic [ref=e112]:
+            - generic [ref=e113]:
+              - generic [ref=e114]: 🔴 تحتاج انتباهاً
+              - link "عرض الكل" [ref=e115] [cursor=pointer]:
+                - /url: /tickets
+                - text: عرض الكل →
+            - generic [ref=e116]:
+              - generic [ref=e118]:
+                - generic [ref=e119]: New Laptop Request
+                - generic [ref=e120]: REQ-2026-00001 · غير معينة
+              - generic [ref=e121]:
+                - generic [ref=e122]: عالية
+                - generic [ref=e123]: جديدة
+            - generic [ref=e124]:
+              - generic [ref=e126]:
+                - generic [ref=e127]: Workflow Test Incident
+                - generic [ref=e128]: INC-2026-00002 · غير معينة
+              - generic [ref=e129]:
+                - generic [ref=e130]: عالية
+                - generic [ref=e131]: جديدة
+            - generic [ref=e132]:
+              - generic [ref=e134]:
+                - generic [ref=e135]: Test Accident
+                - generic [ref=e136]: INC-2026-00001 · غير معينة
+              - generic [ref=e137]:
+                - generic [ref=e138]: حرجة
+                - generic [ref=e139]: جديدة
+            - generic [ref=e140]:
+              - generic [ref=e142]:
+                - generic [ref=e143]: يبيب
+                - generic [ref=e144]: CHG-2026-00001 · غير معينة
+              - generic [ref=e145]:
+                - generic [ref=e146]: عالية
+                - generic [ref=e147]: جديدة
+          - generic [ref=e148]:
+            - generic [ref=e149]: ⚡ النشاط الحي
+            - generic [ref=e150]:
+              - generic [ref=e151]:
+                - generic [ref=e152]: S
+                - generic [ref=e153]:
+                  - generic [ref=e154]: Sara resolved INC-4515
+                  - generic [ref=e155]: 2 min ago
+                - generic [ref=e156]: Resolved
+              - generic [ref=e157]:
+                - generic [ref=e158]: O
+                - generic [ref=e159]:
+                  - generic [ref=e160]: Omar commented on INC-4520
+                  - generic [ref=e161]: 15 min ago
+                - generic [ref=e162]: Comment
+              - generic [ref=e163]:
+                - generic [ref=e164]: A
+                - generic [ref=e165]:
+                  - generic [ref=e166]: Ahmed opened INC-4521
+                  - generic [ref=e167]: 2h ago
+                - generic [ref=e168]: Critical
+              - generic [ref=e169]:
+                - generic [ref=e170]: M
+                - generic [ref=e171]:
+                  - generic [ref=e172]: Mona approved SR-211
+                  - generic [ref=e173]: 3h ago
+                - generic [ref=e174]: Approved

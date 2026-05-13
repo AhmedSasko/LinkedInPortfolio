@@ -1,0 +1,66 @@
+- generic [ref=e43]:
+  - complementary [ref=e44]:
+    - generic [ref=e45]:
+      - heading "LinkedIn AI" [level=1] [ref=e46]
+      - paragraph [ref=e47]: Profile Intelligence
+    - navigation [ref=e48]:
+      - link "Dashboard" [ref=e49] [cursor=pointer]:
+        - /url: /
+        - img [ref=e50]
+        - text: Dashboard
+      - link "Portfolio" [ref=e55] [cursor=pointer]:
+        - /url: /portfolio
+        - img [ref=e56]
+        - text: Portfolio
+      - link "Edit Profile" [ref=e59] [cursor=pointer]:
+        - /url: /edit
+        - img [ref=e60]
+        - text: Edit Profile
+      - link "Analysis" [ref=e62] [cursor=pointer]:
+        - /url: /analysis
+        - img [ref=e63]
+        - text: Analysis
+      - link "Resume" [ref=e64] [cursor=pointer]:
+        - /url: /resume
+        - img [ref=e65]
+        - text: Resume
+    - generic [ref=e68]:
+      - generic [ref=e69]:
+        - generic [ref=e70]: P
+        - generic [ref=e71]: playwright@test.local
+      - button "Sign out" [ref=e72]:
+        - img [ref=e73]
+        - text: Sign out
+  - main [ref=e76]:
+    - generic [ref=e103]:
+      - heading "Edit Profile" [level=2] [ref=e104]
+      - generic [ref=e139]: Profile updated successfully
+      - generic [ref=e105]:
+        - heading "Import from LinkedIn" [level=3] [ref=e106]
+        - generic [ref=e107]:
+          - button "Sync via LinkedIn OAuth" [ref=e108]:
+            - img [ref=e109]
+            - text: Sync via LinkedIn OAuth
+          - generic [ref=e114]:
+            - generic [ref=e115]: Scrape with li_at cookie
+            - generic [ref=e116]:
+              - textbox "Paste your li_at cookie value" [ref=e117]
+              - button "Scrape" [disabled] [ref=e118]
+      - generic [ref=e119]:
+        - heading "Edit Manually" [level=3] [ref=e120]
+        - generic [ref=e121]:
+          - generic [ref=e122]:
+            - generic [ref=e123]: Full Name
+            - textbox [ref=e124]: Playwright Test User
+          - generic [ref=e125]:
+            - generic [ref=e126]: Headline
+            - textbox [ref=e127]: QA Engineer | Automation Specialist
+          - generic [ref=e128]:
+            - generic [ref=e129]: Location
+            - textbox [ref=e130]: Riyadh, Saudi Arabia
+          - generic [ref=e131]:
+            - generic [ref=e132]: About
+            - textbox [ref=e133]: Automated test profile for CI validation.
+          - button "Save Changes" [ref=e134]:
+            - img [ref=e135]
+            - text: Save Changes

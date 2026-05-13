@@ -1,0 +1,59 @@
+- generic [ref=e25]:
+  - complementary [ref=e26]:
+    - generic [ref=e27]:
+      - heading "LinkedIn AI" [level=1] [ref=e28]
+      - paragraph [ref=e29]: Profile Intelligence
+    - navigation [ref=e30]:
+      - link "Dashboard" [ref=e31] [cursor=pointer]:
+        - /url: /
+        - img [ref=e32]
+        - text: Dashboard
+      - link "Portfolio" [ref=e37] [cursor=pointer]:
+        - /url: /portfolio
+        - img [ref=e38]
+        - text: Portfolio
+      - link "Edit Profile" [ref=e41] [cursor=pointer]:
+        - /url: /edit
+        - img [ref=e42]
+        - text: Edit Profile
+      - link "Analysis" [ref=e44] [cursor=pointer]:
+        - /url: /analysis
+        - img [ref=e45]
+        - text: Analysis
+      - link "Resume" [ref=e46] [cursor=pointer]:
+        - /url: /resume
+        - img [ref=e47]
+        - text: Resume
+    - generic [ref=e50]:
+      - generic [ref=e51]:
+        - generic [ref=e52]: S
+        - generic [ref=e53]: scrapetest@test.local
+      - button "Sign out" [ref=e54]:
+        - img [ref=e55]
+        - text: Sign out
+  - main [ref=e58]:
+    - generic [ref=e59]:
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - heading "Dashboard" [level=2] [ref=e62]
+          - paragraph
+        - button "Run AI Analysis" [ref=e63]:
+          - img [ref=e64]
+          - text: Run AI Analysis
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - heading "Profile Score" [level=3] [ref=e68]
+          - generic [ref=e69]: Run analysis to see your score
+        - generic [ref=e70]:
+          - heading "Career Overview" [level=3] [ref=e71]
+          - paragraph [ref=e72]: No analysis yet
+        - generic [ref=e73]:
+          - heading "Seniority Level" [level=3] [ref=e74]
+          - paragraph [ref=e75]: No analysis yet
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - heading "Score Breakdown" [level=3] [ref=e78]
+          - generic [ref=e79]: Run analysis to see breakdown
+        - generic [ref=e80]:
+          - heading "Top Improvements" [level=3] [ref=e81]
+          - generic [ref=e82]: No improvements yet

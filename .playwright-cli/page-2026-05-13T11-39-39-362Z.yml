@@ -1,0 +1,20 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - heading "Welcome back" [level=1] [ref=e6]
+    - paragraph [ref=e7]: Sign in to your account
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - generic [ref=e10]: Email
+      - textbox [ref=e11]
+    - generic [ref=e12]:
+      - generic [ref=e13]: Password
+      - textbox [ref=e14]
+    - button "Sign in" [ref=e15]
+  - generic [ref=e19]: or continue with
+  - generic [ref=e20]:
+    - button "Google" [ref=e21]
+    - button "LinkedIn" [ref=e22]
+  - paragraph [ref=e23]:
+    - text: Don't have an account?
+    - link "Sign up" [ref=e24] [cursor=pointer]:
+      - /url: /register
