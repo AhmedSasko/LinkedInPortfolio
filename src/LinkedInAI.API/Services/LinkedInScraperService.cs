@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using PuppeteerSharp;
 
 namespace LinkedInAI.API.Services;
@@ -48,6 +49,16 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
             Path = "/", HttpOnly = true, Secure = true
         };
 
+        // Inject anti-detection script before any navigation (must run on new document)
+        const string stealthScript = @"
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US','en'] });
+            window.chrome = { runtime: {}, loadTimes: function(){}, csi: function(){}, app: {} };
+        ";
+        foreach (var p in new[] { mainPage, expPage, eduPage, skillPage, projPage })
+            await p.EvaluateExpressionOnNewDocumentAsync(stealthScript);
+
         // Set UA + cookie on every page
         foreach (var p in new[] { mainPage, expPage, eduPage, skillPage, projPage })
         {
@@ -85,12 +96,22 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
         logger.LogInformation("Detail page URLs: exp={E}, edu={Ed}, skills={S}, proj={P}",
             expPage.Url, eduPage.Url, skillPage.Url, projPage.Url);
 
-        // Short wait for main page JS hydration
-        await Task.Delay(2000);
+        // Wait for JS hydration then progressively scroll to trigger IntersectionObserver lazy-loading
+        await Task.Delay(3000);
+        // Try to wait for profile sections to appear (h2 beyond "Activity")
+        try { await mainPage.WaitForSelectorAsync("section", new WaitForSelectorOptions { Timeout = 5000 }); } catch { /* proceed */ }
+        await mainPage.EvaluateFunctionAsync<object>(@"async () => {
+            for (let y = 300; y <= 5000; y += 250) {
+                window.scrollTo(0, y);
+                await new Promise(r => setTimeout(r, 100));
+            }
+            window.scrollTo(0, 0);
+        }");
+        await Task.Delay(3000);
 
         // Log main page body sample to understand About/structure
-        var mainBodySample = await mainPage.EvaluateFunctionAsync<string>(@"() => document.body.innerText.substring(0, 3000)");
-        logger.LogInformation("Main page body (first 3000): {Body}", mainBodySample);
+        var mainBodySample = await mainPage.EvaluateFunctionAsync<string>(@"() => document.body.innerText.substring(0, 8000)");
+        logger.LogInformation("Main page body (first 8000): {Body}", mainBodySample);
 
         // Wait for detail pages to JS-render (they are CSR-only, need extra time)
         // We wait up to 6s for span[aria-hidden] to appear, meaning content has loaded
@@ -100,6 +121,117 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
             WaitForDetailContent(skillPage),
             WaitForDetailContent(projPage)
         );
+
+        // ── DOM diagnostics ──────────────────────────────────────────────────
+        var domDiag = await mainPage.EvaluateFunctionAsync<string>(@"() => {
+            const aboutEl = document.querySelector('#about');
+            const h2h3 = [...document.querySelectorAll('h2,h3')].map(e => (e.textContent||'').trim().substring(0,60));
+            const ariaSpans = [...document.querySelectorAll('span[aria-hidden=""true""]')]
+                .map(s => (s.textContent||'').trim().length);
+            const ogDesc = document.querySelector('meta[property=""og:description""]')?.getAttribute('content') || null;
+            const jsonLd = [...document.querySelectorAll('script[type=""application/ld+json""]')]
+                .map(s => s.textContent||'').join(' | ').substring(0, 500);
+            return JSON.stringify({
+                hasAbout: !!aboutEl,
+                aboutTag: aboutEl?.tagName,
+                h2h3,
+                ariaSpanLengths: ariaSpans.filter(l => l > 40).sort((a,b)=>b-a).slice(0,10),
+                ogDesc: ogDesc ? ogDesc.substring(0, 200) : null,
+                jsonLd: jsonLd.substring(0, 200)
+            });
+        }");
+        logger.LogInformation("DOM diagnostics: {Diag}", domDiag);
+
+        // ── RSC profileCardsAboveActivity: fetch About section directly ─────────
+        // LinkedIn serves a stripped page to headless Chrome (no About/Experience sections),
+        // but the RSC component endpoint returns the full profile data when called with
+        // a valid session cookie (li_at + JSESSIONID) and the vieweeProfileId.
+        var profileVanity = baseUrl.TrimEnd('/').Split('/').Last();
+        string? rscAbout = null;
+        try
+        {
+            // Step 1: extract vieweeProfileId — present in the "Message" button href
+            // as ?profileUrn=urn%3Ali%3Afsd_profile%3AACoA... even in the partial headless page.
+            var vieweeProfileId = await mainPage.EvaluateFunctionAsync<string?>(@"() => {
+                for (const link of document.querySelectorAll('a[href]')) {
+                    const href = link.getAttribute('href') || '';
+                    if (!href.includes('ACoA')) continue;
+                    const m = href.match(/(ACoA[A-Za-z0-9+\/=_-]{10,60})/);
+                    if (m) return m[1];
+                }
+                for (const el of document.querySelectorAll('[componentkey]')) {
+                    const key = el.getAttribute('componentkey') || '';
+                    const m = key.match(/ref(ACoA[A-Za-z0-9+\/=_-]{10,50})/);
+                    if (m) return m[1];
+                }
+                return null;
+            }");
+
+            logger.LogInformation("RSC: vieweeProfileId={Id}", vieweeProfileId);
+
+            if (!string.IsNullOrEmpty(vieweeProfileId))
+            {
+                // Step 2: POST to profileCardsAboveActivity RSC endpoint from within the page
+                // context so cookies (li_at + JSESSIONID) are automatically included.
+                var rscRaw = await mainPage.EvaluateFunctionAsync<string?>(@"async (profileId, vanity) => {
+                    try {
+                        const jsid = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('JSESSIONID='));
+                        const csrf = jsid ? jsid.split('=').slice(1).join('=') : '';
+                        const payload = {
+                            clientArguments: {
+                                payload: {
+                                    isSelfView: false,
+                                    vanityName: vanity,
+                                    replaceableSectionArgs: {
+                                        vanityName: vanity,
+                                        hideCardsForGoldenGate: false,
+                                        shouldSetupReplaceableComponent: true,
+                                        vieweeProfileId: profileId,
+                                        isSelfView: false
+                                    },
+                                    profileComponentState: { profileId: vanity }
+                                },
+                                states: [],
+                                requestMetadata: {},
+                                screenId: 'com.linkedin.sdui.flagshipnav.profile.Profile'
+                            }
+                        };
+                        const r = await fetch(
+                            '/flagship-web/rsc-action/actions/component' +
+                            '?componentId=com.linkedin.sdui.generated.profile.dsl.impl.profileCardsAboveActivity' +
+                            '&sduiid=com.linkedin.sdui.generated.profile.dsl.impl.profileCardsAboveActivity' +
+                            '&parentSpanId=AAAAAAAAAA%3D',
+                            {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: {
+                                    'content-type': 'application/json',
+                                    'csrf-token': csrf,
+                                    'x-li-rsc-stream': 'true',
+                                    'x-li-application-version': '0.2.5496',
+                                    'x-li-anchor-page-key': 'd_flagship3_profile_view_base'
+                                },
+                                body: JSON.stringify(payload)
+                            }
+                        );
+                        if (!r.ok) return null;
+                        const t = await r.text();
+                        return t.substring(0, 60000);
+                    } catch(e) { return null; }
+                }", vieweeProfileId, profileVanity);
+
+                if (!string.IsNullOrEmpty(rscRaw))
+                {
+                    logger.LogInformation("RSC response length: {Len}", rscRaw.Length);
+                    rscAbout = ParseBioFromRscResponse(rscRaw);
+                    logger.LogInformation("RSC About: {About}", rscAbout?[..Math.Min(rscAbout?.Length ?? 0, 100)]);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("RSC about fetch failed: {Msg}", ex.Message);
+        }
 
         // ── Extract basic info from main page ────────────────────────────────
         onStep?.Invoke("basic_info");
@@ -143,7 +275,7 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
             Name      = basic?.Name,
             Headline  = basic?.Headline,
             Location  = basic?.Location,
-            About     = basic?.About,
+            About     = rscAbout ?? basic?.About,   // RSC fetch preferred; DOM strategies as fallback
             PhotoUrl  = basic?.PhotoUrl,
             Experiences    = experiences,
             Educations     = educations,
@@ -418,7 +550,8 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
                 if (sep > 0) name = t.substring(0, sep).trim() || null;
             }
 
-            const lines = (document.body.innerText || '').split('\n').map(l => l.trim()).filter(Boolean);
+            const cleanLine = l => l.replace(/[\u200F\u200E\u200B\u200C\u200D\uFEFF]/g, '').trim();
+            const lines = (document.body.innerText || '').split('\n').map(cleanLine).filter(Boolean);
 
             // Headline: first meaningful sibling of h1
             let headline = null;
@@ -474,61 +607,78 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
                 }
             }
 
-            // About
-            // Strategy: use aria-hidden spans only (safer than innerText which may contain activity content).
-            // Spans must be > 80 chars so we don't accidentally pick up short nav/button/comment text.
+            // About — handles both English ('About') and Arabic ('نبذة عنا', 'نبذة عني', 'نبذة', 'حول') headings
             let about = null;
+            const aboutHeadings = new Set(['About', '\u0646\u0628\u0630\u0629 \u0639\u0646\u0627', '\u0646\u0628\u0630\u0629 \u0639\u0646\u064a', '\u0646\u0628\u0630\u0629', '\u062d\u0648\u0644']);
+            const socialSignals = ['Like','Comment','Repost','Share','Congratulations',
+                '\u0645\u0628\u0631\u0648\u0648\u0648\u0643','\u064a\u0639\u062c\u0628\u0646\u064a','\u062a\u0639\u0644\u064a\u0642','\u0645\u0634\u0627\u0631\u0643\u0629','\u0625\u0639\u062c\u0627\u0628'];
 
-            // 1. id=""about"" element with substantial aria-hidden spans
+            // Helper: extract bio text from a section element (tries multiple selectors)
+            const extractFromSec = sec => {
+                if (!sec) return null;
+                // aria-hidden spans
+                const spans = [...sec.querySelectorAll('span[aria-hidden=""true""]')]
+                    .map(s => (s.textContent||'').trim()).filter(t => t && !aboutHeadings.has(t) && t.length > 80);
+                if (spans.length > 0) return spans[0].substring(0, 3000);
+                // expandable text box
+                const box = sec.querySelector('[data-testid=""expandable-text-box""]');
+                if (box) { const t = (box.textContent||'').trim(); if (t.length > 80) return t.substring(0, 3000); }
+                // section innerText minus heading (catches non-aria-hidden bios)
+                const raw = (sec.innerText||'').split('\n').map(cleanLine).filter(l => l.length > 2 && !aboutHeadings.has(l) && l !== 'see more' && l !== 'Show less').join(' ');
+                if (raw.length > 80) return raw.substring(0, 3000);
+                return null;
+            };
+
+            // 1. #about anchor → parent section
             const aboutEl = document.querySelector('#about');
             if (aboutEl) {
-                const spans = [...aboutEl.querySelectorAll('span[aria-hidden=""true""]')]
-                    .map(s => (s.textContent || '').trim())
-                    .filter(t => t && t !== 'About' && t.length > 80);
-                if (spans.length > 0) about = spans[0].substring(0, 3000);
+                const sec = aboutEl.closest('section') || aboutEl.parentElement?.parentElement;
+                about = extractFromSec(sec);
             }
 
-            // 2. h2/h3 with exact text 'About' → closest section, aria-hidden spans only
+            // 2. h2/h3 matching any About heading variant → closest section
             if (!about) {
-                const h = [...document.querySelectorAll('h2, h3')].find(el => (el.textContent||'').trim() === 'About');
+                const h = [...document.querySelectorAll('h2, h3')]
+                    .find(el => aboutHeadings.has(cleanLine(el.textContent||'')));
                 if (h) {
                     const sec = h.closest('section') || h.parentElement?.parentElement;
-                    if (sec) {
-                        const spans = [...sec.querySelectorAll('span[aria-hidden=""true""]')]
-                            .map(s => (s.textContent||'').trim()).filter(t => t && t !== 'About' && t.length > 80);
-                        if (spans.length > 0) { about = spans[0].substring(0, 3000); }
-                    }
+                    about = extractFromSec(sec);
                 }
             }
 
-            // 3. Expandable text box
+            // 3. Broad page scan — all aria-hidden spans > 150 chars, no social signals
+            //    (catches bio even when section heading is unrecognized)
             if (!about) {
-                const box = document.querySelector('[data-testid=""expandable-text-box""]');
-                if (box) about = (box.textContent||'').trim().substring(0, 3000) || null;
+                const candidates = [...document.querySelectorAll('span[aria-hidden=""true""]')]
+                    .map(s => (s.textContent||'').trim())
+                    .filter(t => t.length > 150 && !socialSignals.some(sig => t.includes(sig)));
+                if (candidates.length > 0) about = candidates[0].substring(0, 3000);
             }
 
-            // 4. Body-text fallback — only accept About before first Activity heading.
-            //    Require 200+ chars AND no social-media signals (to avoid activity-feed content).
+            // 4. Body-text fallback — find About or Arabic-About heading in rendered page text,
+            //    collect until next section, require 200+ chars, reject social-media signals.
             if (!about) {
-                const nextHeadings = new Set(['Activity','Experience','Education','Skills','Recommendations','Certifications','Projects','Licenses']);
+                const stopHeadings = new Set([
+                    'Activity', '\u0646\u0634\u0627\u0637', '\u0627\u0644\u0646\u0634\u0627\u0637',
+                    'Experience', '\u0627\u0644\u062e\u0628\u0631\u0627\u062a', '\u062e\u0628\u0631\u0629',
+                    'Education', '\u0627\u0644\u062a\u0639\u0644\u064a\u0645',
+                    'Skills', '\u0627\u0644\u0645\u0647\u0627\u0631\u0627\u062a',
+                    'Recommendations', 'Certifications', 'Projects', '\u0627\u0644\u0645\u0634\u0631\u0648\u0639\u0627\u062a',
+                    'Licenses', 'Interests', 'Languages'
+                ]);
                 const footerKeywords = new Set(['Accessibility','Talent Solutions','Community Guidelines','Careers']);
-                // Words that appear in activity feeds but not in professional bios
-                const socialSignals = ['Like','Comment','Repost','Share','Congratulations',
-                    'مبروووك','\u064a\u0639\u062c\u0628\u0646\u064a','\u062a\u0639\u0644\u064a\u0642','\u0645\u0634\u0627\u0631\u0643\u0629',
-                    '\u0625\u0639\u062c\u0627\u0628'];
-                const firstActivityIdx = lines.indexOf('Activity');
+                const firstActivityIdx = lines.findIndex(l => l === 'Activity' || l === '\u0646\u0634\u0627\u0637' || l === '\u0627\u0644\u0646\u0634\u0627\u0637');
                 for (let ai = 0; ai < lines.length; ai++) {
-                    if (lines[ai] !== 'About') continue;
+                    if (!aboutHeadings.has(lines[ai])) continue;
                     if (footerKeywords.has(lines[ai + 1] || '')) continue;
                     if (firstActivityIdx >= 0 && ai > firstActivityIdx) continue;
                     let endIdx = lines.length;
                     for (let i = ai + 1; i < lines.length; i++) {
-                        if (nextHeadings.has(lines[i])) { endIdx = i; break; }
+                        if (stopHeadings.has(lines[i])) { endIdx = i; break; }
                     }
                     const chunk = lines.slice(ai + 1, endIdx)
                         .filter(l => l.length > 5 && !l.match(/^… /) && l !== '… more').join(' ');
                     if (chunk.length < 200) continue;
-                    // Skip if the chunk looks like activity/social content
                     if (socialSignals.some(sig => chunk.includes(sig))) continue;
                     about = chunk.substring(0, 3000); break;
                 }
@@ -540,6 +690,32 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
 
             return { name, headline, location, about, photoUrl: photoEl?.src ?? null };
         }");
+    }
+
+    // ── Parse bio from LinkedIn RSC wire-format response ─────────────────────
+    // The RSC response for profileCardsAboveActivity embeds bio text as:
+    //   "children":["BIO TEXT"]
+    // (a single-element JSON array whose only element is the bio string)
+    private static string? ParseBioFromRscResponse(string rscText)
+    {
+        string[] socialSignals = ["Like", "Comment", "Repost", "Congratulations",
+            "مبروووك", "يعجبني", "تعليق", "مشاركة", "Endorsement", "endorsed"];
+
+        // Match: "children":["...long string..."]
+        const string pattern = @"""children""\s*:\s*\[""((?:[^""\\]|\\.){100,3000})""\]";
+        foreach (Match m in Regex.Matches(rscText, pattern))
+        {
+            var candidate = m.Groups[1].Value
+                .Replace(@"\n", " ")
+                .Replace(@"\r", "")
+                .Replace(@"\""", "\"")
+                .Trim();
+
+            if (candidate.Length < 100) continue;
+            if (socialSignals.Any(s => candidate.Contains(s))) continue;
+            return candidate[..Math.Min(candidate.Length, 3000)];
+        }
+        return null;
     }
 
     // ── Top-card fallback for 2nd-connection condensed view ───────────────────
