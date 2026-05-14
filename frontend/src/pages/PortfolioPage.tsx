@@ -76,9 +76,9 @@ export default function PortfolioPage() {
                   {edu.fieldOfStudy ? ` · ${edu.fieldOfStudy}` : ''}
                 </div>
               )}
-              {(edu.startDate || edu.endDate) && (
+              {(edu.startYear || edu.endYear) && (
                 <div className="text-xs text-gray-400 mt-0.5">
-                  {edu.startDate} — {edu.endDate ?? 'Present'}
+                  {edu.startYear} — {edu.endYear ?? 'Present'}
                 </div>
               )}
             </div>
@@ -105,7 +105,7 @@ export default function PortfolioPage() {
           {profile.certifications.map((c, i) => (
             <div key={i} className="py-2">
               <div className="font-medium text-gray-900 text-sm">{c.name}</div>
-              {c.issuer && <div className="text-xs text-gray-500">{c.issuer}</div>}
+              {c.issuingOrganization && <div className="text-xs text-gray-500">{c.issuingOrganization}</div>}
             </div>
           ))}
         </Section>

@@ -25,8 +25,8 @@ export interface ProfileEducation {
   school: string;
   degree?: string;
   fieldOfStudy?: string;
-  startDate?: string;
-  endDate?: string;
+  startYear?: string;
+  endYear?: string;
 }
 
 export interface ProfileSkill {
@@ -38,10 +38,9 @@ export interface ProfileSkill {
 export interface ProfileCertification {
   id?: number;
   name: string;
-  issuer?: string;
+  issuingOrganization?: string;
   issueDate?: string;
-  expiryDate?: string;
-  credentialId?: string;
+  credentialUrl?: string;
 }
 
 export interface ProfileProject {

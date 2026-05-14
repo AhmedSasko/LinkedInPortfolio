@@ -36,12 +36,11 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
         onStep?.Invoke("launching_browser");
         await using var browser = await Puppeteer.LaunchAsync(launchOptions);
 
-        // Open all pages upfront — same browser context shares the cookie
-        var mainPage  = await browser.NewPageAsync();
-        var expPage   = await browser.NewPageAsync();
-        var eduPage   = await browser.NewPageAsync();
-        var skillPage = await browser.NewPageAsync();
-        var projPage  = await browser.NewPageAsync();
+        // Use a SINGLE browser tab that navigates sequentially.
+        // Multiple simultaneous tabs loading LinkedIn detail pages is a clear bot
+        // pattern — LinkedIn detects it and strips content (bodyLen ~1807 with no entries).
+        // Sequential single-tab navigation mimics real user behaviour and avoids detection.
+        var page = await browser.NewPageAsync();
 
         var cookie = new CookieParam
         {
@@ -56,20 +55,13 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
             Object.defineProperty(navigator, 'languages', { get: () => ['en-US','en'] });
             window.chrome = { runtime: {}, loadTimes: function(){}, csi: function(){}, app: {} };
         ";
-        foreach (var p in new[] { mainPage, expPage, eduPage, skillPage, projPage })
-            await p.EvaluateExpressionOnNewDocumentAsync(stealthScript);
+        await page.EvaluateExpressionOnNewDocumentAsync(stealthScript);
+        await page.SetViewportAsync(new ViewPortOptions { Width = 1280, Height = 900 });
+        await page.SetUserAgentAsync(UserAgent);
+        await page.SetCookieAsync(cookie);
 
-        // Set UA + cookie on every page
-        foreach (var p in new[] { mainPage, expPage, eduPage, skillPage, projPage })
-        {
-            await p.SetViewportAsync(new ViewPortOptions { Width = 1280, Height = 900 });
-            await p.SetUserAgentAsync(UserAgent);
-            await p.SetCookieAsync(cookie);
-        }
-
-        // ── Launch all navigations in parallel ───────────────────────────────
-        onStep?.Invoke("loading_profile");
-
+        // ── Navigation helpers ────────────────────────────────────────────────
+        // Main page: DOMContentLoaded is enough — we scroll manually after.
         static Task SafeGoto(IPage p, string url) =>
             p.GoToAsync(url, new NavigationOptions
             {
@@ -77,30 +69,32 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
                 Timeout = 30000
             }).ContinueWith(_ => { }, TaskContinuationOptions.None); // swallow exceptions
 
+        // Detail pages: wait for Networkidle2 so LinkedIn's SDUI JS fully renders content
+        // before the extractor runs. This is the key change vs. the parallel approach.
+        static Task DetailGoto(IPage p, string url) =>
+            p.GoToAsync(url, new NavigationOptions
+            {
+                WaitUntil = [WaitUntilNavigation.Networkidle2],
+                Timeout = 35000
+            }).ContinueWith(_ => { }, TaskContinuationOptions.None);
+
         // Ensure no trailing slash before appending detail paths
         var baseUrl = profileUrl.TrimEnd('/');
-        await Task.WhenAll(
-            SafeGoto(mainPage,  baseUrl),
-            SafeGoto(expPage,   baseUrl + "/details/experience/"),
-            SafeGoto(eduPage,   baseUrl + "/details/education/"),
-            SafeGoto(skillPage, baseUrl + "/details/skills/"),
-            SafeGoto(projPage,  baseUrl + "/details/projects/")
-        );
 
-        // Check auth on main page
-        if (IsAuthWall(mainPage.Url))
+        // ── Step 1: Load main page ────────────────────────────────────────────
+        onStep?.Invoke("loading_profile");
+        await SafeGoto(page, baseUrl);
+
+        if (IsAuthWall(page.Url))
             throw new InvalidOperationException(
                 "LinkedIn session expired. Please log into LinkedIn, copy a fresh li_at cookie and try again.");
 
-        logger.LogInformation("Main page URL: {Url}", mainPage.Url);
-        logger.LogInformation("Detail page URLs: exp={E}, edu={Ed}, skills={S}, proj={P}",
-            expPage.Url, eduPage.Url, skillPage.Url, projPage.Url);
+        logger.LogInformation("Main page URL: {Url}", page.Url);
 
         // Wait for JS hydration then progressively scroll to trigger IntersectionObserver lazy-loading
         await Task.Delay(3000);
-        // Try to wait for profile sections to appear (h2 beyond "Activity")
-        try { await mainPage.WaitForSelectorAsync("section", new WaitForSelectorOptions { Timeout = 5000 }); } catch { /* proceed */ }
-        await mainPage.EvaluateFunctionAsync<object>(@"async () => {
+        try { await page.WaitForSelectorAsync("section", new WaitForSelectorOptions { Timeout = 5000 }); } catch { /* proceed */ }
+        await page.EvaluateFunctionAsync<object>(@"async () => {
             for (let y = 300; y <= 5000; y += 250) {
                 window.scrollTo(0, y);
                 await new Promise(r => setTimeout(r, 100));
@@ -110,20 +104,11 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
         await Task.Delay(3000);
 
         // Log main page body sample to understand About/structure
-        var mainBodySample = await mainPage.EvaluateFunctionAsync<string>(@"() => document.body.innerText.substring(0, 8000)");
+        var mainBodySample = await page.EvaluateFunctionAsync<string>(@"() => document.body.innerText.substring(0, 8000)");
         logger.LogInformation("Main page body (first 8000): {Body}", mainBodySample);
 
-        // Wait for detail pages to JS-render (they are CSR-only, need extra time)
-        // We wait up to 6s for span[aria-hidden] to appear, meaning content has loaded
-        await Task.WhenAll(
-            WaitForDetailContent(expPage),
-            WaitForDetailContent(eduPage),
-            WaitForDetailContent(skillPage),
-            WaitForDetailContent(projPage)
-        );
-
         // ── DOM diagnostics ──────────────────────────────────────────────────
-        var domDiag = await mainPage.EvaluateFunctionAsync<string>(@"() => {
+        var domDiag = await page.EvaluateFunctionAsync<string>(@"() => {
             const aboutEl = document.querySelector('#about');
             const h2h3 = [...document.querySelectorAll('h2,h3')].map(e => (e.textContent||'').trim().substring(0,60));
             const ariaSpans = [...document.querySelectorAll('span[aria-hidden=""true""]')]
@@ -152,7 +137,7 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
         {
             // Step 1: extract vieweeProfileId — present in the "Message" button href
             // as ?profileUrn=urn%3Ali%3Afsd_profile%3AACoA... even in the partial headless page.
-            var vieweeProfileId = await mainPage.EvaluateFunctionAsync<string?>(@"() => {
+            var vieweeProfileId = await page.EvaluateFunctionAsync<string?>(@"() => {
                 for (const link of document.querySelectorAll('a[href]')) {
                     const href = link.getAttribute('href') || '';
                     if (!href.includes('ACoA')) continue;
@@ -173,7 +158,7 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
             {
                 // Step 2: POST to profileCardsAboveActivity RSC endpoint from within the page
                 // context so cookies (li_at + JSESSIONID) are automatically included.
-                var rscRaw = await mainPage.EvaluateFunctionAsync<string?>(@"async (profileId, vanity) => {
+                var rscRaw = await page.EvaluateFunctionAsync<string?>(@"async (profileId, vanity) => {
                     try {
                         const jsid = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('JSESSIONID='));
                         const csrf = jsid ? jsid.split('=').slice(1).join('=') : '';
@@ -233,33 +218,45 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
             logger.LogWarning("RSC about fetch failed: {Msg}", ex.Message);
         }
 
-        // ── Extract basic info from main page ────────────────────────────────
+        // ── Extract basic info from main page (before navigating away) ─────────
         onStep?.Invoke("basic_info");
-        var basic = await ExtractBasicInfo(mainPage);
+        var basic = await ExtractBasicInfo(page);
 
-        // ── Parse detail pages ───────────────────────────────────────────────
+        // ── Navigate to detail pages sequentially ─────────────────────────────
+        // Single-tab sequential navigation mimics natural user behaviour.
+        // Each page uses NetworkIdle2 so SDUI JS fully renders the section content.
         onStep?.Invoke("experience");
-        var experiences = await ExtractDetailItems<List<ExperienceData>>(expPage, ExperienceExtractorJs) ?? [];
+        await DetailGoto(page, baseUrl + "/details/experience/");
+        await WaitForDetailContent(page);
+        var experiences = await ExtractDetailItems<List<ExperienceData>>(page, ExperienceExtractorJs) ?? [];
 
         onStep?.Invoke("education");
-        var educations = await ExtractDetailItems<List<EducationData>>(eduPage, EducationExtractorJs) ?? [];
+        await DetailGoto(page, baseUrl + "/details/education/");
+        await WaitForDetailContent(page);
+        var educations = await ExtractDetailItems<List<EducationData>>(page, EducationExtractorJs) ?? [];
 
         onStep?.Invoke("skills");
-        var skills = await ExtractDetailItems<List<SkillData>>(skillPage, SkillsExtractorJs) ?? [];
+        await DetailGoto(page, baseUrl + "/details/skills/");
+        await WaitForDetailContent(page);
+        var skills = await ExtractDetailItems<List<SkillData>>(page, SkillsExtractorJs) ?? [];
 
         onStep?.Invoke("certifications");
-        var projects = await ExtractDetailItems<List<ProjectData>>(projPage, ProjectsExtractorJs) ?? [];
+        await DetailGoto(page, baseUrl + "/details/projects/");
+        await WaitForDetailContent(page);
+        var projects = await ExtractDetailItems<List<ProjectData>>(page, ProjectsExtractorJs) ?? [];
         if (projects.Count == 0)
         {
             logger.LogInformation("Projects aria-span extractor returned 0 — trying body-text parser");
-            projects = await ExtractDetailItems<List<ProjectData>>(projPage, ProjectsBodyTextExtractorJs) ?? [];
+            projects = await ExtractDetailItems<List<ProjectData>>(page, ProjectsBodyTextExtractorJs) ?? [];
         }
 
         // ── Fallback: if detail pages failed (auth-walled or empty), use top-card ──
         if (experiences.Count == 0 && educations.Count == 0)
         {
             logger.LogWarning("Detail pages yielded nothing — falling back to top-card extraction");
-            var (topExp, topEdu) = await ExtractTopCardEntriesAsync(mainPage);
+            await SafeGoto(page, baseUrl);
+            await Task.Delay(2000);
+            var (topExp, topEdu) = await ExtractTopCardEntriesAsync(page);
             experiences = topExp;
             educations  = topEdu;
         }
@@ -290,27 +287,19 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
     private static bool IsAuthWall(string url) =>
         url.Contains("/login") || url.Contains("/authwall") || url.Contains("/uas/");
 
-    // Wait up to 6 s for detail page content to JS-render (span[aria-hidden] or bodyLen > 5000)
+    // Wait up to 8 s for detail page content to JS-render.
+    // The new LinkedIn SDUI does NOT use span[aria-hidden="true"] on detail pages;
+    // text is rendered directly. Wait for body to grow beyond the nav-only ~1600 bytes.
     private static async Task WaitForDetailContent(IPage page)
     {
         if (IsAuthWall(page.Url)) return;
         try
         {
-            // Try waiting for the first real content span
-            await page.WaitForSelectorAsync("span[aria-hidden='true']",
-                new WaitForSelectorOptions { Timeout = 6000 });
+            await page.WaitForFunctionAsync(
+                "() => document.body.innerText.length > 1600",
+                new WaitForFunctionOptions { Timeout = 8000 });
         }
-        catch
-        {
-            // If no aria-spans appear, at least wait until body grows beyond nav-only size
-            try
-            {
-                await page.WaitForFunctionAsync(
-                    "() => document.body.innerText.length > 3000",
-                    new WaitForFunctionOptions { Timeout = 4000 });
-            }
-            catch { /* proceed with whatever loaded */ }
-        }
+        catch { /* proceed with whatever loaded */ }
     }
 
     private async Task<T?> ExtractDetailItems<T>(IPage page, string extractorJs) where T : class
@@ -364,77 +353,301 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
         }
     ";
 
+    // Body-text experience extractor for the new LinkedIn SDUI (no aria-hidden spans).
+    // Handles Arabic-Indic numerals, Arabic month names, and mixed-language profiles.
     private static readonly string ExperienceExtractorJs = @"() => {
-        " + AriaSpanExtractorHelper + @"
-        const NAV = new Set(['Home','Jobs','Messaging','LinkedIn','Notifications','Me','For Business','Experience','Interests','Skills','Education','Projects','Licenses','Languages']);
-        return extractItems(
-            spans => spans[0].length > 1 && !NAV.has(spans[0]) && !spans[0].match(/^\d+$/),
-            spans => {
-                const title = spans[0];
-                // Company is typically 'Name · Type' or just 'Name'
-                const companyRaw = spans[1] || null;
-                const company = companyRaw ? companyRaw.split(' · ')[0].trim() : null;
-                // Find the date span — contains a 4-digit year or 'Present' / Arabic equivalents
-                const dateSpan = spans.find(t => t.match(/\d{4}/) && (t.includes('-') || t.includes('–') || t.includes('Present') || t.includes('\u062d\u0627\u0644\u064a\u064b\u0627') || t.includes('\u0627\u0644\u0622\u0646')));
-                let startDate = null, endDate = null;
-                let isCurrent = false;
-                if (dateSpan) {
-                    isCurrent = dateSpan.includes('Present') || dateSpan.includes('\u062d\u0627\u0644\u064a\u064b\u0627') || dateSpan.includes('\u0627\u0644\u0622\u0646') || dateSpan.includes('\u062d\u062a\u0649 \u0627\u0644\u0622\u0646');
-                    const parts = dateSpan.split(/\s*[-–]\s*/);
-                    startDate = parts[0]?.trim() || null;
-                    if (!isCurrent && parts.length > 1) {
-                        // strip duration suffix like '· 2 years'
-                        endDate = parts[1]?.split(' · ')[0]?.trim() || null;
-                    }
-                }
-                // Description: longer free-text span
-                const desc = spans.find(t => t.length > 60 && !t.match(/^\d/) && t !== companyRaw && t !== title && !t.match(/\d{4}/));
-                return { title, company, startDate, endDate, description: desc || null, isCurrent };
+        const clean = s => s.replace(/[\u200F\u200E\u200B\u200C\u200D\uFEFF]/g, '').trim();
+        // Arabic-Indic digits (٠١٢٣٤٥٦٧٨٩) → Western
+        const normDigits = s => s ? s.replace(/[\u0660-\u0669]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48)) : s;
+
+        const PRESENT = ['Present', '\u062d\u062a\u0649 \u0627\u0644\u0622\u0646', '\u0627\u0644\u0622\u0646', '\u062d\u0627\u0644\u064a\u064b\u0627', '\u062d\u0627\u0644\u064a\u0627', '\u062d\u0627\u0644\u064a\u064b\u0627'];
+        const STOP = new Set([
+            '\u0627\u0644\u062a\u0639\u0644\u064a\u0645', 'Education',
+            '\u0627\u0644\u0645\u0647\u0627\u0631\u0627\u062a', 'Skills',
+            '\u0627\u0644\u0645\u0634\u0631\u0648\u0639\u0627\u062a', 'Projects',
+            '\u0627\u0644\u062a\u0648\u0635\u064a\u0627\u062a', 'Recommendations',
+            '\u0627\u0644\u0634\u0647\u0627\u062f\u0627\u062a', 'Certifications',
+            '\u0645\u0632\u064a\u062f \u0645\u0646 \u0627\u0644\u0645\u0644\u0641\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629 \u0645\u0646 \u0623\u062c\u0644\u0643',
+            'More profiles for you',
+            '\u0646\u0628\u0630\u0629 \u0639\u0646\u0627', 'About',
+            '\u0625\u0645\u0643\u0627\u0646\u064a\u0629 \u0627\u0644\u0648\u0635\u0648\u0644', 'Accessibility',
+            '\u062d\u0644\u0648\u0644 \u0627\u0644\u0645\u0648\u0627\u0647\u0628', 'Talent Solutions',
+            '\u0625\u0631\u0634\u0627\u062f\u0627\u062a \u0627\u0644\u0645\u062c\u062a\u0645\u0639', 'Community Guidelines'
+        ]);
+
+        const body = document.body.innerText || '';
+        const lines = body.split('\n').map(clean).filter(l => l.length > 0);
+
+        const startIdx = lines.findIndex(l => l === '\u0627\u0644\u062e\u0628\u0631\u0629' || l === 'Experience');
+        if (startIdx < 0) return [];
+
+        const hasYear = l => /\d{4}|[\u0660-\u0669]{4}/.test(l);
+        const isDateLine = l => {
+            if (!hasYear(l)) return false;
+            const base = l.split(' \u00b7 ')[0];
+            return /[-\u2013]/.test(base) || PRESENT.some(p => base.includes(p));
+        };
+        const isDurationOnly = l => /^[\u0660-\u0669\d]/.test(l) && /\u0633\u0646\u0629|\u0634\u0647\u0631|year|month/i.test(l) && !isDateLine(l.split('\u00b7')[0].trim());
+        const isSkillLine = l => l.includes('\u0628\u0627\u0644\u0625\u0636\u0627\u0641\u0629 \u0625\u0644\u0649') && l.includes('\u0645\u0647\u0627\u0631\u0629');
+        const isLocationLine = l => {
+            if (l.length > 80 || isDateLine(l)) return false;
+            if (/[\u0600-\u06FF]/.test(l) && l.length < 50) return true;
+            if (/^(Saudi Arabia|KSA|UAE|Egypt|Jordan|Kuwait|Bahrain|Qatar|Oman|Syria|Lebanon|Iraq|Yemen|Morocco|Algeria|Tunisia|United Arab Emirates)$/i.test(l)) return true;
+            return false;
+        };
+        const isJobTitle = l => {
+            if (l.length > 100) return false;
+            if (!/^[A-Z\u0600-\u06FF]/.test(l)) return false;
+            if (/\b(am|is|are|was|were|have|has|had)\b/.test(l)) return false;
+            if (/^(Develop|Build|Create|Work|Manage|Lead|Design|Implement|Maintain|Support|Provide|Deliver|Responsible|We are|We were)/i.test(l)) return false;
+            if (/\b(Engineer|Developer|Manager|Director|Lead|Leader|Head|Officer|Specialist|Analyst|Designer|Architect|Consultant|Senior|Junior|Staff|Principal|VP|CTO|CEO|CFO|COO|Instructor|Programmer|Administrator|Coordinator|Supervisor|President|Associate|Technician|Trainer)\b/i.test(l)) return true;
+            if (l.length < 60 && l.split(' ').length < 7) return true;
+            return false;
+        };
+
+        const results = [];
+        let title = null, company = null, startDate = null, endDate = null, isCurrent = false, desc = null;
+        let seenDate = false;
+
+        const commit = () => {
+            if (title && title.length > 1) {
+                results.push({
+                    title: title.trim(),
+                    company: company ? company.trim() : null,
+                    startDate: normDigits(startDate),
+                    endDate: normDigits(endDate),
+                    description: desc ? desc.trim() : null,
+                    isCurrent
+                });
             }
-        ).slice(0, 30);
+            title = null; company = null; startDate = null; endDate = null;
+            isCurrent = false; desc = null; seenDate = false;
+        };
+
+        for (let i = startIdx + 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line) continue;
+            if (STOP.has(line)) break;
+            if (line.startsWith('\u00b7') || line.startsWith('\u2022')) continue;
+            if (/^[\u0660-\u0669\d]+\s*(\u0625\u0634\u0639\u0627\u0631|notification|connection)/i.test(line)) continue;
+            if (isSkillLine(line)) continue;
+            if (isDurationOnly(line)) continue;
+            if (/^(\u062f\u0648\u0627\u0645 \u0643\u0627\u0645\u0644|\u062f\u0648\u0627\u0645 \u062c\u0632\u0626\u064a|\u0639\u0645\u0644 \u062d\u0631|Full-time|Part-time|Contract|Internship|\u062a\u062f\u0631\u064a\u0628)$/.test(line)) continue;
+            if (/^(\u062f\u0648\u0627\u0645 \u0645\u0646 \u0645\u0642\u0631|\u0639\u0646 \u0628\u064f\u0639\u062f|\u0647\u062c\u064a\u0646|On-site|Remote|Hybrid)$/.test(line)) continue;
+            if (line.startsWith('\u062a\u062c\u0631\u0628\u0629 Premium')) continue;
+
+            // Date line
+            if (isDateLine(line)) {
+                seenDate = true;
+                const base = line.split(' \u00b7 ')[0].trim();
+                const parts = base.split(/\s*[-\u2013]\s*/);
+                startDate = parts[0]?.trim() || null;
+                const ep = parts[1]?.trim() || null;
+                isCurrent = PRESENT.some(p => (ep || '').includes(p));
+                endDate = isCurrent ? null : ep;
+                continue;
+            }
+
+            // Company line with ' · ' separator
+            if (line.includes(' \u00b7 ') && !hasYear(line)) {
+                if (seenDate) { continue; } // location · work-mode after date
+                if (!company && title) { company = line.split(' \u00b7 ')[0].trim(); }
+                continue;
+            }
+
+            // After date: location → skip; job title → new entry; description → capture once
+            if (seenDate) {
+                if (isLocationLine(line)) continue;
+                if (isJobTitle(line)) { commit(); title = line; }
+                else if (!desc) { desc = line; }
+                continue;
+            }
+
+            // Before date: title then company
+            if (!title) { title = line; }
+            else if (!company) { company = line; }
+            else if (!desc && line.length > 40) { desc = line; }
+        }
+        commit();
+        return results.slice(0, 30);
     }";
 
+    // Body-text education extractor for the new LinkedIn SDUI.
     private static readonly string EducationExtractorJs = @"() => {
-        " + AriaSpanExtractorHelper + @"
-        const NAV = new Set(['Home','Jobs','Messaging','LinkedIn','Notifications','Me','For Business','Education','Experience','Skills','Projects']);
-        return extractItems(
-            spans => spans[0].length > 2 && !NAV.has(spans[0]) && !spans[0].match(/^\d+$/),
-            spans => {
-                const school = spans[0];
-                // Second span is often 'Field · Degree' or 'Degree, Field'
-                const degreeRaw = spans[1] || null;
-                let degree = null, fieldOfStudy = null;
-                if (degreeRaw) {
-                    const parts = degreeRaw.split(' · ');
-                    fieldOfStudy = parts[0]?.trim() || null;
-                    degree = parts[1]?.trim() || parts[0]?.trim() || null;
-                }
-                // Year span: '2004 — 2008' or Arabic numerals
-                const yearSpan = spans.find(t => t.match(/[\d\u0660-\u0669]{4}\s*[—–-]/));
-                let startYear = null, endYear = null;
-                if (yearSpan) {
-                    const parts = yearSpan.split(/\s*[—–-]\s*/);
-                    startYear = parts[0]?.trim() || null;
-                    endYear = parts[1]?.trim() || null;
-                }
-                return { school, degree, fieldOfStudy, startYear, endYear };
+        const clean = s => s.replace(/[\u200F\u200E\u200B\u200C\u200D\uFEFF]/g, '').trim();
+        const normDigits = s => s ? s.replace(/[\u0660-\u0669]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48)) : s;
+
+        const STOP = new Set([
+            '\u0627\u0644\u062e\u0628\u0631\u0629', 'Experience',
+            '\u0627\u0644\u0645\u0647\u0627\u0631\u0627\u062a', 'Skills',
+            '\u0645\u0632\u064a\u062f \u0645\u0646 \u0627\u0644\u0645\u0644\u0641\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629 \u0645\u0646 \u0623\u062c\u0644\u0643',
+            'More profiles for you', '\u0646\u0628\u0630\u0629 \u0639\u0646\u0627', 'About',
+            '\u0625\u0645\u0643\u0627\u0646\u064a\u0629 \u0627\u0644\u0648\u0635\u0648\u0644', 'Accessibility',
+            '\u062d\u0644\u0648\u0644 \u0627\u0644\u0645\u0648\u0627\u0647\u0628', 'Talent Solutions',
+            '\u0625\u0631\u0634\u0627\u062f\u0627\u062a \u0627\u0644\u0645\u062c\u062a\u0645\u0639', 'Community Guidelines'
+        ]);
+        // Lines to skip that are clearly metadata, not school/degree
+        const SKIP_LINE = new Set([
+            '\u062a\u0645\u064a\u0632', '\u062a\u0641\u0648\u0642', 'Honors & Awards',
+            '\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062a\u062e\u0631\u062c', 'Graduation Project',
+            '\u0639\u0646\u0648\u0627\u0646 \u0627\u0644\u0645\u0634\u0631\u0648\u0639', 'Project title',
+            '\u0623\u0647\u062f\u0627\u0641 \u0627\u0644\u0645\u0634\u0631\u0648\u0639', 'Project Objectives',
+            '\u062f\u0631\u062c\u0629 \u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062a\u062e\u0631\u062c', 'Graduation Project Degree',
+            '\u2026 \u0627\u0644\u0645\u0632\u064a\u062f', '… المزيد'
+        ]);
+
+        const body = document.body.innerText || '';
+        const lines = body.split('\n').map(clean).filter(l => l.length > 0);
+
+        const startIdx = lines.findIndex(l => l === '\u0627\u0644\u062a\u0639\u0644\u064a\u0645' || l === 'Education');
+        if (startIdx < 0) return [];
+
+        const hasYear = l => /\d{4}|[\u0660-\u0669]{4}/.test(l);
+        const isYearRange = l => hasYear(l) && /[\u2013\u2014\u2212\-–—]/.test(l);
+        const isGrade = l => /^(Very good|Good|Excellent|\u062c\u064a\u062f \u062c\u062f\u064b\u0627|\u062c\u064a\u062f|\u0645\u0645\u062a\u0627\u0632|\u062a\u0642\u062f\u064a\u0631)/i.test(l);
+
+        const results = [];
+        let school = null, degree = null, fieldOfStudy = null, startYear = null, endYear = null;
+
+        const commit = () => {
+            if (school && school.length > 2) {
+                results.push({
+                    school: school.trim(),
+                    degree: degree ? degree.trim() : null,
+                    fieldOfStudy: fieldOfStudy ? fieldOfStudy.trim() : null,
+                    startYear: normDigits(startYear),
+                    endYear: normDigits(endYear)
+                });
             }
-        ).slice(0, 20);
+            school = null; degree = null; fieldOfStudy = null; startYear = null; endYear = null;
+        };
+
+        // De-duplicate: track seen (school, year) pairs to avoid double entries
+        const seen = new Set();
+
+        for (let i = startIdx + 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line) continue;
+            if (STOP.has(line)) break;
+            if (SKIP_LINE.has(line)) continue;
+            if (line.startsWith('\u00b7') || line.startsWith('\u2022')) continue;
+            if (line.startsWith('\u062a\u062c\u0631\u0628\u0629 Premium')) continue;
+            // Skip long description lines (graduation project text etc.)
+            if (line.length > 150) continue;
+
+            // Year range line
+            if (isYearRange(line)) {
+                const parts = line.split(/\s*[\u2013\u2014\u2212\-–—]\s*/);
+                startYear = parts[0]?.trim() || null;
+                endYear = parts[1]?.trim() || null;
+                continue;
+            }
+
+            // Grade line
+            if (isGrade(line)) continue;
+
+            // Degree/field line: contains '،' (Arabic comma) or 'Bachelor'/'Master'/'PhD' etc.
+            if (line.includes('\u060c') || // Arabic comma ،
+                /\b(Bachelor|Master|PhD|B\.Sc|M\.Sc|B\.A|M\.A|Doctor|Engineer|Diploma)\b/i.test(line)) {
+                if (!degree) {
+                    const parts = line.split(/\u060c|\u002c/);
+                    degree = parts[0]?.trim() || line;
+                    fieldOfStudy = parts[1]?.trim() || null;
+                }
+                continue;
+            }
+
+            // School name: if we already have a school and year, commit before starting new one
+            if (school && startYear) {
+                const key = school + '|' + startYear;
+                if (!seen.has(key)) { seen.add(key); commit(); }
+                else { school = null; degree = null; fieldOfStudy = null; startYear = null; endYear = null; }
+            } else if (school && !startYear) {
+                // Two school-looking lines without a year between them — duplicate school/college
+                // Use the more specific (longer) one
+                if (line.length > school.length) { school = line; degree = null; fieldOfStudy = null; }
+                continue;
+            } else {
+                if (school) commit();
+            }
+            school = line;
+        }
+        if (school) {
+            const key = school + '|' + (startYear || '');
+            if (!seen.has(key)) { seen.add(key); commit(); }
+        }
+        return results.slice(0, 20);
     }";
 
+    // Body-text skills extractor for the new LinkedIn SDUI.
     private static readonly string SkillsExtractorJs = @"() => {
-        " + AriaSpanExtractorHelper + @"
-        const NAV = new Set(['Home','Jobs','Messaging','LinkedIn','Notifications','Me','For Business','Skills','Add a skill','Show all skills']);
-        return extractItems(
-            spans => spans[0].length > 1 && !NAV.has(spans[0]) && !spans[0].match(/^\d+$/) && spans[0].length < 80,
-            spans => {
-                const name = spans[0];
-                // Endorsement count: span like '47 endorsements'
-                const endorse = spans.find(t => t.match(/^\d+\s+(endorsement|people)/i));
-                const endorsementCount = endorse ? (parseInt(endorse.match(/\d+/)?.[0] || '0') || 0) : 0;
-                return { name, endorsementCount };
+        const clean = s => s.replace(/[\u200F\u200E\u200B\u200C\u200D\uFEFF]/g, '').trim();
+        const normDigits = s => s ? s.replace(/[\u0660-\u0669]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48)) : s;
+
+        const STOP = new Set([
+            '\u0627\u0644\u062e\u0628\u0631\u0629', 'Experience',
+            '\u0627\u0644\u062a\u0639\u0644\u064a\u0645', 'Education',
+            '\u0645\u0632\u064a\u062f \u0645\u0646 \u0627\u0644\u0645\u0644\u0641\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629 \u0645\u0646 \u0623\u062c\u0644\u0643',
+            'More profiles for you', '\u0646\u0628\u0630\u0629 \u0639\u0646\u0627', 'About',
+            '\u0625\u0645\u0643\u0627\u0646\u064a\u0629 \u0627\u0644\u0648\u0635\u0648\u0644', 'Accessibility',
+            '\u062d\u0644\u0648\u0644 \u0627\u0644\u0645\u0648\u0627\u0647\u0628', 'Talent Solutions',
+            '\u0625\u0631\u0634\u0627\u062f\u0627\u062a \u0627\u0644\u0645\u062c\u062a\u0645\u0639', 'Community Guidelines'
+        ]);
+        // Category tabs to skip
+        const SKIP_CATEGORY = new Set([
+            '\u0627\u0644\u0643\u0644', 'All', '\u0627\u0644\u0645\u0639\u0631\u0641\u0629 \u0627\u0644\u0645\u0647\u0646\u064a\u0629', 'Industry Knowledge',
+            '\u0627\u0644\u0623\u062f\u0648\u0627\u062a \u0648\u0627\u0644\u062a\u0642\u0646\u064a\u0627\u062a', 'Tools & Technologies',
+            '\u0645\u0647\u0627\u0631\u0627\u062a \u0634\u062e\u0635\u064a\u0629 \u0648\u0628\u064a\u0646 \u0627\u0644\u0623\u0634\u062e\u0627\u0635', 'Interpersonal Skills',
+            '\u0625\u0636\u0627\u0641\u0629 \u0645\u0647\u0627\u0631\u0629', 'Add a skill', 'Show all skills'
+        ]);
+
+        const body = document.body.innerText || '';
+        const lines = body.split('\n').map(clean).filter(l => l.length > 0);
+
+        const startIdx = lines.findIndex(l => l === '\u0627\u0644\u0645\u0647\u0627\u0631\u0627\u062a' || l === 'Skills');
+        if (startIdx < 0) return [];
+
+        const isEndorsementDetail = l =>
+            l.startsWith('\u2066') || l.startsWith('\u2067') || // LRI/RLI marks
+            l.startsWith('\u062a\u0645\u062a \u0627\u0644\u0645\u0635\u0627\u062f\u0642\u0629') || // تمت المصادقة
+            l.startsWith('\u062a\u0645 \u0627\u0644\u062a\u0635\u062f\u064a\u0642');               // تم التصديق
+        const isContextLine = l => l.includes(' \u0641\u064a ') && l.length > 30; // contains ' في '
+        const isEndorsementCount = l => /^[\d\u0660-\u0669]+\s*\u0645\u0635\u0627\u062f\u0642\u0629/.test(l) || /^\d+\s+endorsement/i.test(l);
+
+        const results = [];
+        let currentSkill = null;
+        let currentCount = 0;
+
+        const commit = () => {
+            if (currentSkill && currentSkill.length > 0 && currentSkill.length < 100) {
+                results.push({ name: currentSkill.trim(), endorsementCount: currentCount });
             }
-        ).slice(0, 60);
+            currentSkill = null;
+            currentCount = 0;
+        };
+
+        for (let i = startIdx + 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line) continue;
+            if (STOP.has(line)) break;
+            if (SKIP_CATEGORY.has(line)) continue;
+            if (line.startsWith('\u00b7') || line.startsWith('\u2022')) continue;
+            if (line.startsWith('\u062a\u062c\u0631\u0628\u0629 Premium')) continue;
+            if (isEndorsementDetail(line)) continue;
+            if (isContextLine(line)) continue;
+
+            if (isEndorsementCount(line)) {
+                const match = line.match(/^[\d\u0660-\u0669]+/);
+                if (match) currentCount = parseInt(normDigits(match[0])) || 0;
+                continue;
+            }
+
+            // Otherwise it's a skill name
+            commit();
+            currentSkill = line;
+        }
+        commit();
+        return results.slice(0, 80);
     }";
 
     private static readonly string ProjectsExtractorJs = @"() => {
@@ -474,7 +687,12 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
         const STOP = new Set(['Experience','Education','Skills','Honors','Recommendations',
             'Certifications','Languages','Interests','About','حول',
             'Licenses & certifications','خبرة','التعليم','الخبرات','المهارات',
-            'More profiles for you','المزيد من الملفات الشخصية']);
+            'More profiles for you','المزيد من الملفات الشخصية',
+            // Exact Arabic text that appears after projects section on the page:
+            'مزيد من الملفات الشخصية من أجلك',
+            // Footer section headings that signal end of content:
+            'نبذة عنا','إمكانية الوصول','حلول المواهب','إرشادات المجتمع',
+            'Accessibility','Talent Solutions','Community Guidelines']);
         const SKIP_LINE = new Set(['Connect','Message','Follow']);
         // Additional skip: lines starting with · (degree of separation indicator)
 
