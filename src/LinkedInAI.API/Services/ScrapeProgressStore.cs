@@ -14,6 +14,7 @@ public class ScrapeProgressStore
         ("education",         "Extracting education"),
         ("skills",            "Extracting skills"),
         ("certifications",    "Extracting certifications & projects"),
+        ("languages",         "Extracting languages"),
         ("saving",            "Saving to your profile"),
     ];
 

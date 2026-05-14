@@ -13,6 +13,7 @@ public class ProfileData
     public List<SkillData> Skills { get; set; } = [];
     public List<CertificationData> Certifications { get; set; } = [];
     public List<ProjectData> Projects { get; set; } = [];
+    public List<LanguageData> Languages { get; set; } = [];
 }
 
 public record ExperienceData(string? Title, string? Company, string? StartDate, string? EndDate, string? Description, bool IsCurrent);
@@ -20,3 +21,4 @@ public record EducationData(string? School, string? Degree, string? FieldOfStudy
 public record SkillData(string Name, int EndorsementCount = 0);
 public record CertificationData(string? Name, string? IssuingOrganization, string? IssueDate, string? CredentialUrl);
 public record ProjectData(string? Title, string? Description, string? Url, string? StartDate, string? EndDate);
+public record LanguageData(string Name, string? Proficiency);
