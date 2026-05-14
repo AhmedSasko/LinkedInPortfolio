@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, MapPin, Briefcase, GraduationCap, Award, FolderKanban } from 'lucide-react';
+import { Loader2, MapPin, Briefcase, GraduationCap, Award, FolderKanban, Globe } from 'lucide-react';
 import { profileApi } from '../api/profileApi';
 import type { ProfileExperience } from '../types';
 
@@ -125,6 +125,22 @@ export default function PortfolioPage() {
               )}
             </div>
           ))}
+        </Section>
+      )}
+
+      {/* Languages */}
+      {profile.languages?.length > 0 && (
+        <Section icon={<Globe size={18} />} title="Languages">
+          <div className="flex flex-wrap gap-3">
+            {profile.languages.map((l, i) => (
+              <div key={i} className="flex flex-col items-center bg-indigo-50 rounded-xl px-4 py-2">
+                <span className="text-sm font-medium text-indigo-800">{l.name}</span>
+                {l.proficiency && (
+                  <span className="text-xs text-indigo-500 mt-0.5">{l.proficiency}</span>
+                )}
+              </div>
+            ))}
+          </div>
         </Section>
       )}
     </div>

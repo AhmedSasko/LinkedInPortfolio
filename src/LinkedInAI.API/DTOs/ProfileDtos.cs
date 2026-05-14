@@ -16,6 +16,7 @@ public class UpdateProfileRequest
     public List<SkillRequest> Skills { get; set; } = [];
     public List<CertificationRequest> Certifications { get; set; } = [];
     public List<ProjectRequest> Projects { get; set; } = [];
+    public List<LanguageRequest> Languages { get; set; } = [];
 }
 
 public record ExperienceRequest(string? Title, string? Company, string? StartDate, string? EndDate, string? Description, bool IsCurrent);
@@ -23,6 +24,7 @@ public record EducationRequest(string? School, string? Degree, string? FieldOfSt
 public record SkillRequest(string Name, int EndorsementCount = 0);
 public record CertificationRequest(string? Name, string? IssuingOrganization, string? IssueDate, string? CredentialUrl);
 public record ProjectRequest(string? Title, string? Description, string? Url, string? StartDate, string? EndDate);
+public record LanguageRequest(string Name, string? Proficiency);
 
 public class ProfileDto
 {
@@ -40,6 +42,7 @@ public class ProfileDto
     public List<SkillDto> Skills { get; set; } = [];
     public List<CertificationDto> Certifications { get; set; } = [];
     public List<ProjectDto> Projects { get; set; } = [];
+    public List<LanguageDto> Languages { get; set; } = [];
 }
 
 public record ExperienceDto(int Id, string? Title, string? Company, string? StartDate, string? EndDate, string? Description, bool IsCurrent);
@@ -47,6 +50,7 @@ public record EducationDto(int Id, string? School, string? Degree, string? Field
 public record SkillDto(int Id, string Name, int EndorsementCount);
 public record CertificationDto(int Id, string? Name, string? IssuingOrganization, string? IssueDate, string? CredentialUrl);
 public record ProjectDto(int Id, string? Title, string? Description, string? Url, string? StartDate, string? EndDate);
+public record LanguageDto(int Id, string Name, string? Proficiency);
 
 public record ProfileSummaryDto(int Id, int UserId, string? Name, string? Headline, string? PhotoUrl, DateTime FetchedAt);
 
@@ -57,7 +61,8 @@ public record ProfileStatusDto(
     int SkillCount,
     int EducationCount,
     int ProjectCount,
-    int CertificationCount
+    int CertificationCount,
+    int LanguageCount
 );
 
 public record ScrapeStepDto(string Key, string Label, string Status);

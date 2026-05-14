@@ -250,6 +250,11 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
             projects = await ExtractDetailItems<List<ProjectData>>(page, ProjectsBodyTextExtractorJs) ?? [];
         }
 
+        onStep?.Invoke("languages");
+        await DetailGoto(page, baseUrl + "/details/languages/");
+        await WaitForDetailContent(page);
+        var languages = await ExtractDetailItems<List<LanguageData>>(page, LanguagesExtractorJs) ?? [];
+
         // ── Fallback: if detail pages failed (auth-walled or empty), use top-card ──
         if (experiences.Count == 0 && educations.Count == 0)
         {
@@ -262,10 +267,10 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
         }
 
         logger.LogInformation(
-            "DOM scrape result: Name={Name}, Headline={H}, Location={L}, About={A}, Exp={E}, Edu={Ed}, Skills={S}, Proj={P}",
+            "DOM scrape result: Name={Name}, Headline={H}, Location={L}, About={A}, Exp={E}, Edu={Ed}, Skills={S}, Proj={P}, Lang={L2}",
             basic?.Name, basic?.Headline, basic?.Location,
             basic?.About?[..Math.Min(basic.About.Length, 60)],
-            experiences.Count, educations.Count, skills.Count, projects.Count);
+            experiences.Count, educations.Count, skills.Count, projects.Count, languages.Count);
 
         return new ProfileData
         {
@@ -278,7 +283,8 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
             Educations     = educations,
             Skills         = skills,
             Certifications = [],
-            Projects       = projects
+            Projects       = projects,
+            Languages      = languages
         };
     }
 
@@ -749,6 +755,74 @@ public class LinkedInScraperService(IConfiguration config, ILogger<LinkedInScrap
         }
         commit();
         return results.slice(0, 20);
+    }";
+
+    // Languages body-text extractor.
+    // LinkedIn /details/languages/ page renders: heading ("اللغات" or "Languages"),
+    // then for each language: Name line, optional Proficiency line.
+    private static readonly string LanguagesExtractorJs = @"() => {
+        const clean = s => s.replace(/[\u200F\u200E\u200B\u200C\u200D\uFEFF]/g, '').trim();
+        const body = document.body.innerText || '';
+        const lines = body.split('\n').map(clean).filter(l => l.length > 0);
+
+        const STOP = new Set([
+            '\u0627\u0644\u062e\u0628\u0631\u0629', 'Experience',
+            '\u0627\u0644\u062a\u0639\u0644\u064a\u0645', 'Education',
+            '\u0627\u0644\u0645\u0647\u0627\u0631\u0627\u062a', 'Skills',
+            '\u0645\u0632\u064a\u062f \u0645\u0646 \u0627\u0644\u0645\u0644\u0641\u0627\u062a \u0627\u0644\u0634\u062e\u0635\u064a\u0629 \u0645\u0646 \u0623\u062c\u0644\u0643',
+            'More profiles for you',
+            '\u0646\u0628\u0630\u0629 \u0639\u0646\u0627', 'About',
+            '\u0625\u0645\u0643\u0627\u0646\u064a\u0629 \u0627\u0644\u0648\u0635\u0648\u0644', 'Accessibility',
+            '\u062d\u0644\u0648\u0644 \u0627\u0644\u0645\u0648\u0627\u0647\u0628', 'Talent Solutions',
+            '\u0625\u0631\u0634\u0627\u062f\u0627\u062a \u0627\u0644\u0645\u062c\u062a\u0645\u0639', 'Community Guidelines'
+        ]);
+
+        // Known proficiency level strings (Arabic + English)
+        const PROFICIENCY = new Set([
+            'Native or bilingual proficiency',
+            'Full professional proficiency',
+            'Professional working proficiency',
+            'Limited working proficiency',
+            'Elementary proficiency',
+            '\u0625\u062a\u0642\u0627\u0646 \u0644\u063a\u0629 \u0627\u0644\u0623\u0645 \u0623\u0648 \u062b\u0646\u0627\u0626\u064a \u0627\u0644\u0644\u063a\u0629',
+            '\u0625\u062a\u0642\u0627\u0646 \u0645\u0647\u0646\u064a \u0643\u0627\u0645\u0644',
+            '\u0625\u062a\u0642\u0627\u0646 \u0645\u0647\u0646\u064a \u0639\u0645\u0644\u064a',
+            '\u0625\u062a\u0642\u0627\u0646 \u0639\u0645\u0644\u064a \u0645\u062d\u062f\u0648\u062f',
+            '\u0625\u062a\u0642\u0627\u0646 \u0627\u0628\u062a\u062f\u0627\u0626\u064a'
+        ]);
+
+        const startIdx = lines.findIndex(l => l === '\u0627\u0644\u0644\u063a\u0627\u062a' || l === 'Languages');
+        if (startIdx < 0) return [];
+
+        const results = [];
+        let langName = null;
+
+        const commit = (proficiency) => {
+            if (langName && langName.length > 0 && langName.length < 60) {
+                results.push({ name: langName.trim(), proficiency: proficiency || null });
+            }
+            langName = null;
+        };
+
+        for (let i = startIdx + 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line) continue;
+            if (STOP.has(line)) break;
+            if (line.startsWith('\u00b7') || line.startsWith('\u2022')) continue;
+            if (line.startsWith('\u062a\u062c\u0631\u0628\u0629 Premium')) continue;
+            // Skip 'Add a language' / 'أضف لغة'
+            if (line.startsWith('Add a language') || line.startsWith('\u0623\u0636\u0641 \u0644\u063a\u0629')) continue;
+
+            if (PROFICIENCY.has(line)) {
+                commit(line);
+            } else {
+                // New language name — commit previous without proficiency
+                if (langName) commit(null);
+                langName = line;
+            }
+        }
+        commit(null);
+        return results.slice(0, 30);
     }";
 
     // ── Basic info extraction from main profile page ──────────────────────────

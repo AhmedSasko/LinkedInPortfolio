@@ -52,6 +52,12 @@ export interface ProfileProject {
   endDate?: string;
 }
 
+export interface ProfileLanguage {
+  id?: number;
+  name: string;
+  proficiency?: string;
+}
+
 export interface Profile {
   id: number;
   userId: number;
@@ -66,6 +72,7 @@ export interface Profile {
   skills: ProfileSkill[];
   certifications: ProfileCertification[];
   projects: ProfileProject[];
+  languages: ProfileLanguage[];
 }
 
 export interface ProfileStatus {

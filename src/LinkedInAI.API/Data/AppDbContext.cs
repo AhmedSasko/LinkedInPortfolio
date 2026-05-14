@@ -14,6 +14,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ProfileSkill> ProfileSkills => Set<ProfileSkill>();
     public DbSet<ProfileCertification> ProfileCertifications => Set<ProfileCertification>();
     public DbSet<ProfileProject> ProfileProjects => Set<ProfileProject>();
+    public DbSet<ProfileLanguage> ProfileLanguages => Set<ProfileLanguage>();
     public DbSet<Resume> Resumes => Set<Resume>();
     public DbSet<AnalysisResult> AnalysisResults => Set<AnalysisResult>();
 
@@ -91,6 +92,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasOne(pr => pr.Profile)
             .WithMany(p => p.Projects)
             .HasForeignKey(pr => pr.ProfileId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProfileLanguage>()
+            .HasOne(l => l.Profile)
+            .WithMany(p => p.Languages)
+            .HasForeignKey(l => l.ProfileId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ProfileExperience>(e =>

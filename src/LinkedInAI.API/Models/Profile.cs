@@ -18,6 +18,7 @@ public class Profile
     public List<ProfileSkill> Skills { get; set; } = [];
     public List<ProfileCertification> Certifications { get; set; } = [];
     public List<ProfileProject> Projects { get; set; } = [];
+    public List<ProfileLanguage> Languages { get; set; } = [];
     public List<AnalysisResult> AnalysisResults { get; set; } = [];
 }
 
@@ -79,6 +80,16 @@ public class ProfileProject
     public string? Url { get; set; }
     public string? StartDate { get; set; }
     public string? EndDate { get; set; }
+
+    public Profile Profile { get; set; } = null!;
+}
+
+public class ProfileLanguage
+{
+    public int Id { get; set; }
+    public int ProfileId { get; set; }
+    public required string Name { get; set; }
+    public string? Proficiency { get; set; }
 
     public Profile Profile { get; set; } = null!;
 }

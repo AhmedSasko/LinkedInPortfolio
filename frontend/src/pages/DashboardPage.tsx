@@ -56,7 +56,7 @@ export default function DashboardPage() {
           disabled={requestAnalysis.isPending || isPending}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
         >
-          {isPending ? (
+          {isPending || requestAnalysis.isPending ? (
             <>
               <Loader2 size={16} className="animate-spin" />
               Analyzing...

@@ -15,6 +15,7 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
             .Include(p => p.Skills)
             .Include(p => p.Certifications)
             .Include(p => p.Projects)
+            .Include(p => p.Languages)
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.FetchedAt)
             .FirstOrDefaultAsync();
@@ -30,6 +31,7 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
             .Include(p => p.Skills)
             .Include(p => p.Certifications)
             .Include(p => p.Projects)
+            .Include(p => p.Languages)
             .FirstOrDefaultAsync(p => p.Id == profileId && p.UserId == userId);
 
         return profile == null ? null : MapToDto(profile);
@@ -43,6 +45,7 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
             .Include(p => p.Skills)
             .Include(p => p.Certifications)
             .Include(p => p.Projects)
+            .Include(p => p.Languages)
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.FetchedAt)
             .FirstOrDefaultAsync();
@@ -65,6 +68,7 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
         db.ProfileSkills.RemoveRange(profile.Skills);
         db.ProfileCertifications.RemoveRange(profile.Certifications);
         db.ProfileProjects.RemoveRange(profile.Projects);
+        db.ProfileLanguages.RemoveRange(profile.Languages);
 
         profile.Experiences = request.Experiences.Select(e => new ProfileExperience
         {
@@ -93,6 +97,11 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
         {
             Title = p.Title, Description = p.Description,
             Url = p.Url, StartDate = p.StartDate, EndDate = p.EndDate
+        }).ToList();
+
+        profile.Languages = request.Languages.Select(l => new ProfileLanguage
+        {
+            Name = l.Name, Proficiency = l.Proficiency
         }).ToList();
 
         await db.SaveChangesAsync();
@@ -154,11 +163,18 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
             Url = p.Url, StartDate = p.StartDate, EndDate = p.EndDate
         }).ToList();
 
+        var languages = data.Languages.Select(l => new ProfileLanguage
+        {
+            ProfileId = profile.Id,
+            Name = l.Name, Proficiency = l.Proficiency
+        }).ToList();
+
         if (experiences.Count > 0) db.ProfileExperiences.AddRange(experiences);
         if (educations.Count > 0)  db.ProfileEducations.AddRange(educations);
         if (skills.Count > 0)      db.ProfileSkills.AddRange(skills);
         if (certifications.Count > 0) db.ProfileCertifications.AddRange(certifications);
         if (projects.Count > 0)    db.ProfileProjects.AddRange(projects);
+        if (languages.Count > 0)   db.ProfileLanguages.AddRange(languages);
 
         await db.SaveChangesAsync();
 
@@ -167,6 +183,7 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
         profile.Skills = skills;
         profile.Certifications = certifications;
         profile.Projects = projects;
+        profile.Languages = languages;
 
         logger.LogInformation("Scraped profile saved for user {UserId}", userId);
         return MapToDto(profile);
@@ -180,12 +197,13 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
             .Include(p => p.Educations)
             .Include(p => p.Projects)
             .Include(p => p.Certifications)
+            .Include(p => p.Languages)
             .Where(p => p.UserId == userId)
             .OrderByDescending(p => p.FetchedAt)
             .FirstOrDefaultAsync();
 
         if (profile == null)
-            return new ProfileStatusDto(false, null, 0, 0, 0, 0, 0);
+            return new ProfileStatusDto(false, null, 0, 0, 0, 0, 0, 0);
 
         return new ProfileStatusDto(
             HasProfile: true,
@@ -194,7 +212,8 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
             SkillCount: profile.Skills.Count,
             EducationCount: profile.Educations.Count,
             ProjectCount: profile.Projects.Count,
-            CertificationCount: profile.Certifications.Count
+            CertificationCount: profile.Certifications.Count,
+            LanguageCount: profile.Languages.Count
         );
     }
 
@@ -243,6 +262,7 @@ public class ProfileService(AppDbContext db, ILogger<ProfileService> logger) : I
         Certifications = p.Certifications.Select(c => new CertificationDto(
             c.Id, c.Name, c.IssuingOrganization, c.IssueDate, c.CredentialUrl)).ToList(),
         Projects = p.Projects.Select(pr => new ProjectDto(
-            pr.Id, pr.Title, pr.Description, pr.Url, pr.StartDate, pr.EndDate)).ToList()
+            pr.Id, pr.Title, pr.Description, pr.Url, pr.StartDate, pr.EndDate)).ToList(),
+        Languages = p.Languages.Select(l => new LanguageDto(l.Id, l.Name, l.Proficiency)).ToList()
     };
 }
